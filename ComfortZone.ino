@@ -38,7 +38,7 @@ WiFiClient client;                              // or... use WiFiClientSecure fo
 #define MQTT_SERVER       "MQTT_SERVER_URL"     // Local OpenHab and MQ server
 #define MQTT_SERVERPORT   1883                  // use 8883 for SSL
 #define MQTT_USERNAME     ""                    // MQTT server username
-#define MQTT_PASSWORD     ""				            // MQTT server password
+#define MQTT_PASSWORD     ""                            // MQTT server password
 
 const char*              hostName = "CZII";     //
 ESP8266WebServer         httpServer(80);        // Http server we will be providing
@@ -55,7 +55,7 @@ Adafruit_MQTT_Publish status_mqtt_feed = Adafruit_MQTT_Publish(&mqtt, "czii/stat
 Adafruit_MQTT_Subscribe mqtt_sub_feed = Adafruit_MQTT_Subscribe(&mqtt, "czii/zonetemp");
 
 // RS485 Software Serial
-#define SSerialRX         D5                  	// RS485 Serial Receive pin
+#define SSerialRX         D5                    // RS485 Serial Receive pin
 #define SSerialTX         D6                    // RS485 Serial Transmit pin
 #define SSerialTxControl  D3                    // RS485 Direction control
 #define RS485Transmit     HIGH
@@ -140,7 +140,7 @@ void wifiSetup() {
   wifiManager.setAPCallback(configModeCallback);
 
   //wifiManager.resetSettings();
-  
+
   // Setup an Access point in order to allow network setup
   if (!wifiManager.startConfigPortal(hostName)) {
       Serial.println("Not connected to WiFi but continuing anyway.");
@@ -151,7 +151,7 @@ void wifiSetup() {
         //read updated parameters
       //strcpy(WUNDERGROUND_API_KEY, custom_mqtt_server.getValue());
     }
-    
+
   //wifiManager.autoConnect( hostName );
 
   WiFi.mode( WIFI_AP_STA );
@@ -506,25 +506,25 @@ void sendPollingCommands() {
 //   |-----------------------------------------------------------------------------------|
 //
 //    Example Data: 9 0   1 0   3   0 0 11   0 9 1   213 184
-//		Destination	= 9
-//		Source 		  = 1
-//		Data Length = 3
-//		Function 	  = 11         (Read Request)
-//		Data 		    = 0 9 1      (Table 9, Row 1)
-//		Checksum 	  = 213 184
+//      Destination = 9
+//      Source      = 1
+//      Data Length = 3
+//      Function    = 11         (Read Request)
+//      Data        = 0 9 1      (Table 9, Row 1)
+//      Checksum    = 213 184
 //
 //   CZII Function Codes:
-//		6 (0x06) Response
-//			 1 Byte Length, Data=0x00 – Seems to be an ACK to a write
-//			 Variable Length > 3 bytes – a response to a read request
-//		11 (0x0B) Read Request
-//			 3 byte Length, Data=Table and row of data to get
-//		12 (0x0C) Write Request
-//			 Variable Length > 3 bytes
-//			 First 3 bytes of data are table and row to write to
-//			 Following bytes are data to write
-//		21 (0x15) Error
-//			 1 Byte Length, Data=0x00
+//      6 (0x06) Response
+//           1 Byte Length, Data=0x00 – Seems to be an ACK to a write
+//           Variable Length > 3 bytes – a response to a read request
+//      11 (0x0B) Read Request
+//           3 byte Length, Data=Table and row of data to get
+//      12 (0x0C) Write Request
+//           Variable Length > 3 bytes
+//           First 3 bytes of data are table and row to write to
+//           Following bytes are data to write
+//      21 (0x15) Error
+//           1 Byte Length, Data=0x00
 //
 bool processInputFrame() {
   digitalWrite(BUILTIN_LED, LOW);  // Flash LED to indicate a frame is being processed
@@ -584,7 +584,7 @@ bool processInputFrame() {
 }
 
 //
-//	Publish CZII data to the MQTT feed
+//  Publish CZII data to the MQTT feed
 //
 void publishCZIIData(RingBuffer ringBuffer) {
   info_print("RS485: ");

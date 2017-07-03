@@ -76,12 +76,12 @@ class Zone {
     }
 
   private:
-    byte zoneNumber = -1;
-    bool modified = false;
+    byte zoneNumber     = -1;
+    bool modified       = false;
 
-    byte coolSetpoint = -1;
-    byte heatSetpoint = -1;
-    float temperature = FLOAT_MIN_VALUE;
-    byte humidity = -1;
+    byte coolSetpoint   = -1;
+    byte heatSetpoint   = -1;
+    float temperature   = FLOAT_MIN_VALUE;
+    byte humidity       = -1;
     byte damperPosition = -1;
 };

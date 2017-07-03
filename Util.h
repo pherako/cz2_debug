@@ -30,7 +30,7 @@
 
 #define array_len( x )  ( sizeof( x ) / sizeof( x[0] ) )
 
-#define FLOAT_MIN_VALUE -1000.0f  // We shouldn't have values less than this 
+#define FLOAT_MIN_VALUE -1000.0f  // We shouldn't have values less than this
 
 uint16_t ModRTU_CRC(RingBuffer& ringBuffer, byte length);
 uint16_t ModRTU_CRC(byte values[], byte length);

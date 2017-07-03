@@ -79,3 +79,4 @@ void RingBuffer::dump(short bufferLength) {
   }
   Serial.println();
 }
+
