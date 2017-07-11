@@ -11,7 +11,8 @@
 RingBuffer rs485InputBuf;
 RingBuffer rs485OutputBuf;
 
-ComfortZoneII CzII((uint8_t)4); //4 zones
+#define NUM_ZONES 4
+ComfortZoneII CzII((uint8_t)NUM_ZONES); //4 zones
 
 //
 //   Debug dump of the current frame including the checksum bytes.  Spaces are inserted for
@@ -65,11 +66,32 @@ void dumpFrame(RingBuffer ringBuffer) {
 //
 //  Publish CZII data to the MQTT feed
 //
+//
 void publishCZIIData(RingBuffer ringBuffer) {
   printf("\nRS485: ");
   dumpFrame(ringBuffer);
-
   CzII.update(ringBuffer);
+
+  printf("\n");
+  Zone* zone;
+  for (uint8_t zz = 0; zz < NUM_ZONES; zz++){
+      zone = CzII.getZone(zz);
+      uint8_t cool_set = zone->getCoolSetpoint();
+      uint8_t heat_set = zone->getHeatSetpoint();
+      float   temperature = zone->getTemperature();
+      uint8_t humidity = zone->getHumidity();
+      uint8_t damper_posn = zone->getDamperPosition();
+      printf("\t[%d] cool_set = %d heat_set = %d temp = %2.2f hum = %d damper =%d\n",
+          zz          ,
+          cool_set    ,
+          heat_set    ,
+          temperature ,
+          humidity    ,
+          damper_posn
+      );
+
+  }
+
 
 }
 //  This method detects if the current buffer has a valid data frame.  If none is found the buffer is shifted
