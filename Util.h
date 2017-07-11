@@ -6,11 +6,12 @@
 #ifndef Util_h
 #define Util_h
 
-#include <Arduino.h>
-#include "RingBuffer.h"
+//#include <Arduino.h>
+#include "RingBuffer.hpp"
+#include <stdint.h>
 
-//#define DEBUG_LOG;
-#define INFO_LOG;
+#define DEBUG_LOG
+#define INFO_LOG
 
 #ifdef DEBUG_LOG
 #define debug_print(x)   Serial.print (x)
@@ -32,7 +33,7 @@
 
 #define FLOAT_MIN_VALUE -1000.0f  // We shouldn't have values less than this
 
-uint16_t ModRTU_CRC(RingBuffer& ringBuffer, byte length);
-uint16_t ModRTU_CRC(byte values[], byte length);
+uint16_t ModRTU_CRC(RingBuffer& ringBuffer, uint8_t length);
+uint16_t ModRTU_CRC(uint8_t values[], uint8_t length);
 
 #endif

@@ -3,13 +3,13 @@
 //
 // Arduino CZII Project
 
-#include "ComfortZoneII.h"
+#include "ComfortZoneII.hpp"
 
-ComfortZoneII::ComfortZoneII(byte numberZones)
+ComfortZoneII::ComfortZoneII(uint8_t numberZones)
 {
   NUMBER_ZONES = numberZones;
 
-  for (byte i = 0; i < NUMBER_ZONES; i++) {
+  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     zones[i] = new Zone(i + 1);
   }
 }
@@ -23,7 +23,7 @@ void ComfortZoneII::clearStatusModified() {
 }
 
 bool ComfortZoneII::isZoneModified() {
-  for (byte i = 0; i < NUMBER_ZONES; i++) {
+  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     if (zones[i]->isModified()) {
       return true;
     }
@@ -32,23 +32,23 @@ bool ComfortZoneII::isZoneModified() {
 }
 
 void ComfortZoneII::clearZoneModified() {
-  for (byte i = 0; i < NUMBER_ZONES; i++) {
+  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     zones[i]->setModified(false);
   }
 }
 
-Zone* ComfortZoneII::getZone(byte zoneIndex) {
+Zone* ComfortZoneII::getZone(uint8_t zoneIndex) {
   return zones[zoneIndex];
 }
 
-void ComfortZoneII::setControllerState(byte value) {
+void ComfortZoneII::setControllerState(uint8_t value) {
   if (controllerState != value)
     statusModified = true;
 
   controllerState = value;
 }
 
-void ComfortZoneII::setLatTemperature(byte value)
+void ComfortZoneII::setLatTemperature(uint8_t value)
   if (!isValidTemperature(value))
       return;
 
@@ -82,7 +82,7 @@ bool ComfortZoneII::isValidTemperature(float value) {
   return value < 200.0 && value > -50.0;
 }
 
-void ComfortZoneII::setDayTime(byte day, byte hour, byte minute, byte second){
+void ComfortZoneII::setDayTime(uint8_t day, uint8_t hour, uint8_t minute, uint8_t second){
   if( day != time.Wday || hour != time.Hour || minute != time.Minute || second != time.Second){
     statusModified = true;
   }
@@ -98,7 +98,7 @@ void ComfortZoneII::setDayTime(byte day, byte hour, byte minute, byte second){
 //
 bool ComfortZoneII::update(RingBuffer& ringBuffer) {
 
-  short bufferLength = ringBuffer.length();
+  uint16_t bufferLength = ringBuffer.length();
 
   // see if the buffer has at least the minimum size for a frame
   if (bufferLength < MIN_MESSAGE_SIZE ) {
@@ -106,15 +106,15 @@ bool ComfortZoneII::update(RingBuffer& ringBuffer) {
     return false;
   }
 
-  byte table, row = 0;
-  byte dataLength = ringBuffer.peek(DATA_LENGTH_POS);
+  uint8_t table, row = 0;
+  uint8_t dataLength = ringBuffer.peek(DATA_LENGTH_POS);
 
   if (dataLength >= 3) {
     table = ringBuffer.peek(DATA_START_POS + 1);
     row = ringBuffer.peek(DATA_START_POS + 2);
   }
 
-  byte function = ringBuffer.peek(FUNCTION_POS);
+  uint8_t function = ringBuffer.peek(FUNCTION_POS);
 
   if (function == RESPONSE_FUNCTION) {
     switch (table) {
@@ -171,7 +171,7 @@ bool ComfortZoneII::update(RingBuffer& ringBuffer) {
 //   FRAME: 9.0  1.0  11  0.0.12  0.9.4.15.15.0.0.0.0.0.0.                 136.181
 //
 void ComfortZoneII::updateDamperPositions(RingBuffer& ringBuffer) {
-  for (byte i = 0; i < NUMBER_ZONES; i++) {
+  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     zones[i]->setDamperPosition(ringBuffer.peek(DATA_START_POS + 3 + i));
   }
 }
@@ -189,7 +189,7 @@ void ComfortZoneII::updateZone1Info(RingBuffer& ringBuffer) {
 //                                        [     cooling          ] [        heating       ]
 //
 void ComfortZoneII::updateZoneSetpoints(RingBuffer& ringBuffer) {
-  for (byte i = 0; i < NUMBER_ZONES; i++) {
+  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     zones[i]->setCoolSetpoint(ringBuffer.peek(DATA_START_POS + 3 + i));
     zones[i]->setHeatSetpoint(ringBuffer.peek(DATA_START_POS + 11 + i));
   }
@@ -200,10 +200,10 @@ void ComfortZoneII::updateZoneSetpoints(RingBuffer& ringBuffer) {
 //
 //
 void ComfortZoneII::updateTime(RingBuffer& ringBuffer) {
-  byte day = ringBuffer.peek(DATA_START_POS + 3);
-  byte hour = ringBuffer.peek(DATA_START_POS + 4);
-  byte minute = ringBuffer.peek(DATA_START_POS + 5);
-  byte second = ringBuffer.peek(DATA_START_POS + 6);
+  uint8_t day = ringBuffer.peek(DATA_START_POS + 3);
+  uint8_t hour = ringBuffer.peek(DATA_START_POS + 4);
+  uint8_t minute = ringBuffer.peek(DATA_START_POS + 5);
+  uint8_t second = ringBuffer.peek(DATA_START_POS + 6);
 
   day++;
   setDayTime(day, hour, minute, second);
@@ -237,7 +237,7 @@ void ComfortZoneII::updateOutsideHumidityTemp(RingBuffer& ringBuffer) {
 //  FRAME: 1.0  2.0  13  0.0.6   0.2.3.0.0.0.0.4.122.71.66.78.0.
 //
 void ComfortZoneII::updateZoneInfo(RingBuffer& ringBuffer) {
-  byte zoneIndex = ringBuffer.peek(2) - 1;
+  uint8_t zoneIndex = ringBuffer.peek(2) - 1;
   if (zoneIndex == 0 || zoneIndex >= NUMBER_ZONES)
     return;
 
@@ -249,7 +249,7 @@ void ComfortZoneII::updateZoneInfo(RingBuffer& ringBuffer) {
 //
 //  Convert the two's compliment temperature into a float (deg F.)
 //
-float ComfortZoneII::getTemperatureF(byte highByte, byte lowByte) {
+float ComfortZoneII::getTemperatureF(uint8_t highByte, uint8_t lowByte) {
   return word(highByte, lowByte) / 16.0;
 }
 
@@ -260,7 +260,7 @@ String ComfortZoneII::toZoneJson() {
   StaticJsonBuffer <400> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
 
-  for (byte i = 0; i < NUMBER_ZONES; i++) {
+  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     JsonObject& zoneData = root.createNestedObject("z" + String(i + 1));
     addJson(zoneData, "cool", zones[i]->getCoolSetpoint());
     addJson(zoneData, "heat", zones[i]->getHeatSetpoint());
@@ -290,7 +290,7 @@ String ComfortZoneII::toStatusJson() {
   addJson(root, "out", outside_Temp_f);
   addJson(root, "out2", outside_Temp2_f);
 
-  if (controllerState != (byte) - 1) {
+  if (controllerState != (uint8_t) - 1) {
     JsonObject& state = root.createNestedObject("state");
     state["dehum"] = (int)(bool)(controllerState & DeHumidify);
     state["hum"] = (int)(bool)(controllerState & Humidify);
@@ -310,8 +310,8 @@ String ComfortZoneII::toStatusJson() {
 //
 //   Add to json if value is not the default value
 //
-void ComfortZoneII::addJson(JsonObject& jsonObject, String key, byte value) {
-  if ( value == (byte) - 1)
+void ComfortZoneII::addJson(JsonObject& jsonObject, String key, uint8_t value) {
+  if ( value == (uint8_t) - 1)
     return;
   jsonObject[key] = value;
 }

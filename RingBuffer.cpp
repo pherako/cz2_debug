@@ -3,17 +3,20 @@
 //
 // Arduino CZII Project
 
-#include "Arduino.h"
-#include "RingBuffer.h"
+//#include "Arduino.h"
+#include "RingBuffer.hpp"
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 
 RingBuffer::RingBuffer()
 {
 }
 
 /**
-   Adds byte to the head of the buffer
+   Adds uint8_t to the head of the buffer
 */
-bool RingBuffer::add(byte value) {
+bool RingBuffer::add(uint8_t value) {
   if ((bufferHeadPos + 1) % MAX_BUFFER_SIZE == bufferTailPos) {
     return false;
   }
@@ -24,9 +27,9 @@ bool RingBuffer::add(byte value) {
 }
 
 /**
-   Returns the byte from the specified buffer position
+   Returns the uint8_t from the specified buffer position
 */
-byte RingBuffer::peek(short position) {
+uint8_t RingBuffer::peek(uint16_t position) {
   if ( bufferHeadPos == bufferTailPos)
     return -1;
 
@@ -36,18 +39,18 @@ byte RingBuffer::peek(short position) {
 /**
    sets the value for the specified position
 */
-void RingBuffer::set(short position, byte value) {
+void RingBuffer::set(uint16_t position, uint8_t value) {
   buffer[position] = value;
 }
 
 /**
-   Returns the byte from the specified buffer position
+   Returns the uint8_t from the specified buffer position
 */
-byte RingBuffer::read() {
+uint8_t RingBuffer::read() {
   if ( bufferHeadPos == bufferTailPos)
     return -1;
 
-  byte value = buffer[bufferTailPos];
+  uint8_t value = buffer[bufferTailPos];
   shift(1);
   return value;
 }
@@ -55,11 +58,11 @@ byte RingBuffer::read() {
 /**
   Shift the buffer by quantity specified.
 */
-void RingBuffer::shift(short quantity) {
+void RingBuffer::shift(uint16_t quantity) {
   bufferTailPos = (bufferTailPos + quantity) % MAX_BUFFER_SIZE;
 }
 
-short RingBuffer::length() {
+uint16_t RingBuffer::length() {
   return (MAX_BUFFER_SIZE + bufferHeadPos - bufferTailPos) % MAX_BUFFER_SIZE;
 }
 
@@ -71,12 +74,12 @@ void RingBuffer::reset() {
 /**
    debug dump of the entire buffer
 */
-void RingBuffer::dump(short bufferLength) {
-  Serial.print("BUFFER: ");
+void RingBuffer::dump(uint16_t bufferLength) {
+  fprintf(stderr, "BUFFER: ");
   for (int pos = 0; pos < bufferLength; pos++) {
-    byte value = peek(pos);
-    Serial.print(String(value) + ".");
+    uint8_t value = peek(pos);
+    fprintf(stderr, "%02x ");
   }
-  Serial.println();
+  fflush(stderr);
 }
 

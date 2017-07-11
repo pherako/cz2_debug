@@ -13,27 +13,27 @@
 class Zone {
 
   public:
-    Zone(byte  number) {
+    Zone(uint8_t  number) {
       number = number;
     }
 
-    void setCoolSetpoint(byte value) {
+    void setCoolSetpoint(uint8_t value) {
       if (coolSetpoint != value)
         modified = true;
       coolSetpoint = value;
     }
 
-    byte getCoolSetpoint() {
+    uint8_t getCoolSetpoint() {
       return coolSetpoint;
     }
 
-    void setHeatSetpoint(byte value) {
+    void setHeatSetpoint(uint8_t value) {
       if (heatSetpoint != value)
         modified = true;
       heatSetpoint = value;
     }
 
-    byte getHeatSetpoint() {
+    uint8_t getHeatSetpoint() {
       return heatSetpoint;
     }
 
@@ -47,23 +47,23 @@ class Zone {
       return temperature;
     }
 
-    void setHumidity(byte value) {
+    void setHumidity(uint8_t value) {
       if (humidity != value)
         modified = true;
       humidity = value;
     }
 
-    byte getHumidity() {
+    uint8_t getHumidity() {
       return humidity;
     }
 
-    void setDamperPosition(byte value) {
+    void setDamperPosition(uint8_t value) {
       if (damperPosition != value)
         modified = true;
       damperPosition = value;
     }
 
-    byte getDamperPosition() {
+    uint8_t getDamperPosition() {
       return damperPosition;
     }
 
@@ -76,12 +76,12 @@ class Zone {
     }
 
   private:
-    byte zoneNumber     = -1;
+    uint8_t zoneNumber     = -1;
     bool modified       = false;
 
-    byte coolSetpoint   = -1;
-    byte heatSetpoint   = -1;
+    uint8_t coolSetpoint   = -1;
+    uint8_t heatSetpoint   = -1;
     float temperature   = FLOAT_MIN_VALUE;
-    byte humidity       = -1;
-    byte damperPosition = -1;
+    uint8_t humidity       = -1;
+    uint8_t damperPosition = -1;
 };

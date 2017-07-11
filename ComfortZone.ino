@@ -24,7 +24,7 @@
 #include "WiFiManager.h"
 
 #include "RingBuffer.h"
-#include "ComfortZoneII.h"
+#include "ComfortZoneII.hpp"
 #include "Util.h"
 
 // WIFI SETUP
@@ -64,16 +64,16 @@ Adafruit_MQTT_Subscribe mqtt_sub_feed = Adafruit_MQTT_Subscribe(&mqtt, "czii/zon
 SoftwareSerial rs485(SSerialRX, SSerialTX, false, 256);
 
 // CZII Configuration
-ComfortZoneII CzII((byte)2);
+ComfortZoneII CzII((uint8_t)2);
 
 // CZII Commands
 #define COMMAND_TIME_PERIOD     10000
 #define DEVICE_ADDRESS          99
-byte REQUEST_INFO_TEMPLATE[]          = {1, 0, DEVICE_ADDRESS, 0, 3, 0, 0, 11, 0, 255, 255, 0, 0};  // Note: Replace the table and row values, and calc checksum before sending out request
-byte SET_ZONE_TEMPERATURE_TEMPLATE[]  = {1, 0, DEVICE_ADDRESS, 0, 19, 0, 0, 12, 0, 1, 16, 76, 76, 76, 76, 76, 76, 76, 76, 68, 68, 68, 68, 68, 68, 68, 68, 255, 255};
+uint8_t REQUEST_INFO_TEMPLATE[]          = {1, 0, DEVICE_ADDRESS, 0, 3, 0, 0, 11, 0, 255, 255, 0, 0};  // Note: Replace the table and row values, and calc checksum before sending out request
+uint8_t SET_ZONE_TEMPERATURE_TEMPLATE[]  = {1, 0, DEVICE_ADDRESS, 0, 19, 0, 0, 12, 0, 1, 16, 76, 76, 76, 76, 76, 76, 76, 76, 68, 68, 68, 68, 68, 68, 68, 68, 255, 255};
 
-byte TABLE1_POLLING_ROWS[] = {6, TABLE1_TEMPS_ROW, TABLE1_TIME_ROW};
-byte rowIndex = 0;
+uint8_t TABLE1_POLLING_ROWS[] = {6, TABLE1_TEMPS_ROW, TABLE1_TIME_ROW};
+uint8_t rowIndex = 0;
 
 unsigned long lastSendTimeMillis = 0;
 unsigned long lastPollingTimeMillis = COMMAND_TIME_PERIOD;   // Delay 10 seconds on startup before sending commands
@@ -237,10 +237,10 @@ void processMqttInput() {
       Serial.println(value);
       Zone* zone1 =  CzII.getZone(0);
       Zone* zone2 =  CzII.getZone(1);
-      byte zone1HeatSetpoint = zone1->getHeatSetpoint();
-      byte zone2HeatSetpoint = zone2->getHeatSetpoint();
-      byte zone1CoolSetpoint = zone1->getCoolSetpoint();
-      byte zone2CoolSetpoint = zone2->getCoolSetpoint();
+      uint8_t zone1HeatSetpoint = zone1->getHeatSetpoint();
+      uint8_t zone2HeatSetpoint = zone2->getHeatSetpoint();
+      uint8_t zone1CoolSetpoint = zone1->getCoolSetpoint();
+      uint8_t zone2CoolSetpoint = zone2->getCoolSetpoint();
       bool sendCommand = false;
 
       if (value == "1") {
@@ -277,7 +277,7 @@ void processMqttInput() {
 void processRs485InputStream() {
   // Process input data
   while (rs485Available() > 0) {
-    if (!rs485InputBuf.add((byte)rs485Read())) {
+    if (!rs485InputBuf.add((uint8_t)rs485Read())) {
       info_println(F("ERROR: INPUT BUFFER OVERRUN!"));
     }
 
@@ -299,10 +299,10 @@ int rs485Read() {
 }
 
 //
-//  Process input data from the Serial stream. This data is converted from ASCII to byte values and
+//  Process input data from the Serial stream. This data is converted from ASCII to uint8_t values and
 //  written out on the rs485 stream.
 //
-//  Data is expected to be in the form of string representing byte values:
+//  Data is expected to be in the form of string representing uint8_t values:
 //       "1.0  99.0  19  0.0.12   0.1.16. 78.77.76.76.76.76.76.76. 68.67.68.68.68.68.68.68. "
 //
 //       - Valid delimiters between bytes are  ' ', '.', or ','
@@ -313,7 +313,7 @@ int rs485Read() {
 //
 void processSerialInputStream() {
   while (Serial.available() > 0) {
-    byte input = Serial.read();
+    uint8_t input = Serial.read();
     bool processByteString = false;
 
     if (input == ' ' || input == '.' || input == ',') // space, dot, or comma = value delimiter
@@ -338,8 +338,8 @@ void processSerialInputStream() {
 
 void processOutputByteString() {
   if (serialInputByte.length() != 0) {
-    // convert to byte and add to buffer
-    byte value = (byte)serialInputByte.toInt();
+    // convert to uint8_t and add to buffer
+    uint8_t value = (uint8_t)serialInputByte.toInt();
     serialInputBuf.add(value);
     serialInputByte = "";
   }
@@ -351,7 +351,7 @@ void processOutputByteString() {
 //
 bool processSerialInputFrame()
 {
-  short bufferLength = serialInputBuf.length();
+  uint16_t bufferLength = serialInputBuf.length();
 
   // Figure out length of buffer
   if (bufferLength < ComfortZoneII::MIN_MESSAGE_SIZE - 2)
@@ -360,14 +360,14 @@ bool processSerialInputFrame()
     return false;
   }
 
-  byte source = serialInputBuf.peek(ComfortZoneII::SOURCE_ADDRESS_POS);
-  byte destination = serialInputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
-  byte dataLength = serialInputBuf.peek(ComfortZoneII::DATA_LENGTH_POS);
-  byte function = serialInputBuf.peek(ComfortZoneII::FUNCTION_POS);
+  uint8_t source = serialInputBuf.peek(ComfortZoneII::SOURCE_ADDRESS_POS);
+  uint8_t destination = serialInputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
+  uint8_t dataLength = serialInputBuf.peek(ComfortZoneII::DATA_LENGTH_POS);
+  uint8_t function = serialInputBuf.peek(ComfortZoneII::FUNCTION_POS);
 
   debug_println("serialInputBuf: source=" + String(source) + ", destination=" + String(destination) + ", dataLength=" + String(dataLength) + ", function=" + String(function));
 
-  byte frameLength = (byte)(ComfortZoneII::DATA_START_POS + dataLength + 2);
+  uint8_t frameLength = (uint8_t)(ComfortZoneII::DATA_START_POS + dataLength + 2);
 
   if (frameLength != (bufferLength + 2))
   {
@@ -376,8 +376,8 @@ bool processSerialInputFrame()
   }
 
   // Add checksum
-  byte checksum1 = frameLength - 2;
-  unsigned short crc = ModRTU_CRC(serialInputBuf, checksum1);
+  uint8_t checksum1 = frameLength - 2;
+  unsigned uint16_t crc = ModRTU_CRC(serialInputBuf, checksum1);
   serialInputBuf.add(lowByte(crc));
   serialInputBuf.add(highByte(crc));
 
@@ -414,26 +414,26 @@ void sendOutputFrame()
   lastSendTimeMillis = millis();
 }
 
-void rs485_EnqueFrame(byte values[], byte size) {
+void rs485_EnqueFrame(uint8_t values[], uint8_t size) {
   if (rs485OutputBuf.length() + size > RingBuffer::MAX_BUFFER_SIZE) {
     info_println("ERROR: rs485_EnqueFrame: skipping frame, rs485OutputBuf not large enough");
     return;
   }
 
   // update checksum
-  byte checksum1 =  size - 2;
-  unsigned short crc = ModRTU_CRC(values, checksum1);
+  uint8_t checksum1 =  size - 2;
+  unsigned uint16_t crc = ModRTU_CRC(values, checksum1);
   values[checksum1] = lowByte(crc);
   values[checksum1 + 1] = highByte(crc);
 
-  for (byte i = 0; i < size; i++) {
-    byte value = values[i];
+  for (uint8_t i = 0; i < size; i++) {
+    uint8_t value = values[i];
     rs485OutputBuf.add(value);
   }
 }
 
 void rs485_TransmitFrame(RingBuffer& ringBuffer) {
-  short bufferLength = ringBuffer.length();
+  uint16_t bufferLength = ringBuffer.length();
   if (bufferLength == 0) {
     return;
   }
@@ -445,8 +445,8 @@ void rs485_TransmitFrame(RingBuffer& ringBuffer) {
     return;
   }
 
-  byte dataLength = ringBuffer.peek(ComfortZoneII::DATA_LENGTH_POS);
-  byte frameLength = (byte)(ComfortZoneII::DATA_START_POS + dataLength + 2);
+  uint8_t dataLength = ringBuffer.peek(ComfortZoneII::DATA_LENGTH_POS);
+  uint8_t frameLength = (uint8_t)(ComfortZoneII::DATA_START_POS + dataLength + 2);
 
   if (bufferLength < frameLength) {
     info_println("rs485_TransmitFrame: not enough data");
@@ -499,7 +499,7 @@ void sendPollingCommands() {
 //   |-----------------------------------------------------------------------------------|
 //   |                      Header                          |           |                |
 //   |-------------------------------------------------------           |                |
-//   | 2 bytes | 2 bytes | 1 byte |  2 bytes  | 1 byte      |   Data    |   Checksum     |
+//   | 2 bytes | 2 bytes | 1 uint8_t |  2 bytes  | 1 uint8_t      |   Data    |   Checksum     |
 //   |-----------------------------------------------------------------------------------|
 //   | Dest    | Source  | Data   | Reserved  | Function    |  0-255    |    2 bytes     |
 //   | Address | Address | Length |           |             |  bytes    |                |
@@ -518,7 +518,7 @@ void sendPollingCommands() {
 //           1 Byte Length, Data=0x00 – Seems to be an ACK to a write
 //           Variable Length > 3 bytes – a response to a read request
 //      11 (0x0B) Read Request
-//           3 byte Length, Data=Table and row of data to get
+//           3 uint8_t Length, Data=Table and row of data to get
 //      12 (0x0C) Write Request
 //           Variable Length > 3 bytes
 //           First 3 bytes of data are table and row to write to
@@ -529,7 +529,7 @@ void sendPollingCommands() {
 bool processInputFrame() {
   digitalWrite(BUILTIN_LED, LOW);  // Flash LED to indicate a frame is being processed
 
-  short bufferLength = rs485InputBuf.length();
+  uint16_t bufferLength = rs485InputBuf.length();
 
   // see if the buffer has at least the minimum size for a frame
   if (bufferLength < ComfortZoneII::MIN_MESSAGE_SIZE ) {
@@ -537,33 +537,33 @@ bool processInputFrame() {
     return false;
   }
 
-  byte source = rs485InputBuf.peek(ComfortZoneII::SOURCE_ADDRESS_POS);
-  byte destination = rs485InputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
-  byte dataLength = rs485InputBuf.peek(ComfortZoneII::DATA_LENGTH_POS);
-  byte function = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
+  uint8_t source = rs485InputBuf.peek(ComfortZoneII::SOURCE_ADDRESS_POS);
+  uint8_t destination = rs485InputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
+  uint8_t dataLength = rs485InputBuf.peek(ComfortZoneII::DATA_LENGTH_POS);
+  uint8_t function = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
 
   //debug_println("rs485InputBuf: source=" + String(source) + ", destination=" + String(destination) + ", dataLength=" + String(dataLength) + ", function=" + String(function));
 
-  short checksum1Pos = ComfortZoneII::DATA_START_POS + dataLength;
-  short checksum2Pos = checksum1Pos + 1;
-  short frameLength = checksum2Pos + 1;
+  uint16_t checksum1Pos = ComfortZoneII::DATA_START_POS + dataLength;
+  uint16_t checksum2Pos = checksum1Pos + 1;
+  uint16_t frameLength = checksum2Pos + 1;
 
   // Make sure we have enough data for this frame
-  short frameBufferDiff =  frameLength - bufferLength;
+  uint16_t frameBufferDiff =  frameLength - bufferLength;
   if (frameBufferDiff > 0 && frameBufferDiff < 30) {
-    // Don't have enough data yet, wait for another byte...
+    // Don't have enough data yet, wait for another uint8_t...
     debug_print(".");
     return false;
   }
 
   debug_println();
 
-  byte checkSum1 = rs485InputBuf.peek(checksum1Pos);
-  byte checkSum2 = rs485InputBuf.peek(checksum2Pos);
+  uint8_t checkSum1 = rs485InputBuf.peek(checksum1Pos);
+  uint8_t checkSum2 = rs485InputBuf.peek(checksum2Pos);
 
-  unsigned short crc = ModRTU_CRC(rs485InputBuf, checksum1Pos);
-  byte high = highByte(crc);
-  byte low = lowByte(crc);
+  unsigned uint16_t crc = ModRTU_CRC(rs485InputBuf, checksum1Pos);
+  uint8_t high = highByte(crc);
+  uint8_t low = lowByte(crc);
 
   if (checkSum2 != high || checkSum1 != low) {
     info_println(F("CRC failed, shifting buffer..."));
@@ -631,7 +631,7 @@ void dumpFrame(RingBuffer ringBuffer) {
   Serial.print("  " + String(ringBuffer.peek(ComfortZoneII::SOURCE_ADDRESS_POS)) + "." + String(ringBuffer.peek(ComfortZoneII::SOURCE_ADDRESS_POS + 1)));
 
   // Data Size
-  byte dataLength = ringBuffer.peek(ComfortZoneII::DATA_LENGTH_POS);
+  uint8_t dataLength = ringBuffer.peek(ComfortZoneII::DATA_LENGTH_POS);
   Serial.print("  " + String(dataLength) );
 
   // Function
@@ -639,7 +639,7 @@ void dumpFrame(RingBuffer ringBuffer) {
   {
     Serial.print(" ");  // add extra space
   }
-  byte function = ringBuffer.peek(ComfortZoneII::FUNCTION_POS);
+  uint8_t function = ringBuffer.peek(ComfortZoneII::FUNCTION_POS);
   Serial.print("  " + String(ringBuffer.peek(ComfortZoneII::FUNCTION_POS - 2)) + "." + String(ringBuffer.peek(ComfortZoneII::FUNCTION_POS - 1)) + "." + String(function));
 
   // Data
@@ -651,19 +651,19 @@ void dumpFrame(RingBuffer ringBuffer) {
   delay(0);
 
   Serial.print("  ");
-  short totalDataTextLength = 0;
-  for (byte pos = ComfortZoneII::DATA_START_POS; pos < (ComfortZoneII::DATA_START_POS + dataLength); pos++) {
+  uint16_t totalDataTextLength = 0;
+  for (uint8_t pos = ComfortZoneII::DATA_START_POS; pos < (ComfortZoneII::DATA_START_POS + dataLength); pos++) {
     String text = String(ringBuffer.peek(pos)) + ".";
     totalDataTextLength += text.length();
     Serial.print(text);
   }
-  for (byte i = 0; i < (60 - totalDataTextLength); i++) {
+  for (uint8_t i = 0; i < (60 - totalDataTextLength); i++) {
     Serial.print(" ");
   }
 
   // Checksum
-  byte crcHighByte = ringBuffer.peek(ComfortZoneII::DATA_START_POS + dataLength);
-  byte crcLowByte = ringBuffer.peek(ComfortZoneII::DATA_START_POS + dataLength + 1);
+  uint8_t crcHighByte = ringBuffer.peek(ComfortZoneII::DATA_START_POS + dataLength);
+  uint8_t crcLowByte = ringBuffer.peek(ComfortZoneII::DATA_START_POS + dataLength + 1);
   Serial.print("  " + String(crcHighByte) + "." + String(crcLowByte));
 
   Serial.println();

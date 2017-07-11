@@ -3,14 +3,14 @@
 //
 // Arduino CZII Project
 
-#ifndef ComfortZoneII_h
-#define ComfortZoneII_h
+#ifndef ComfortZoneII_hpp
+#define ComfortZoneII_hpp
 
-#include <ArduinoJson.h>
-#include <Arduino.h>
-#include <TimeLib.h>
+//#include <ArduinoJson.h>
+//#include <Arduino.h>
+//#include <TimeLib.h>
 #include "Zone.hpp"
-#include "RingBuffer.h"
+#include "RingBuffer.hpp"
 #include "Util.h"
 
 #define TABLE1_TEMPS_ROW        16
@@ -19,43 +19,43 @@
 class ComfortZoneII
 {
   public:
-    ComfortZoneII(byte numberZones);
-    Zone* getZone(byte zoneIndex);
+    ComfortZoneII(uint8_t numberZones);
+    Zone* getZone(uint8_t zoneIndex);
     bool update(RingBuffer& ringBuffer);
     bool isZoneModified();
     void clearZoneModified();
     bool isStatusModified();
     void clearStatusModified();
-    String toZoneJson();
-    String toStatusJson();
+    //String toZoneJson();
+    //String toStatusJson();
 
     // CZII frame
-    static const byte DEST_ADDRESS_POS     = 0;
-    static const byte SOURCE_ADDRESS_POS   = 2;
-    static const byte DATA_LENGTH_POS      = 4;
-    static const byte FUNCTION_POS         = 7;
-    static const byte DATA_START_POS       = 8;
-    static const byte MIN_MESSAGE_SIZE     = 11;
+    static const uint8_t DEST_ADDRESS_POS     = 0;
+    static const uint8_t SOURCE_ADDRESS_POS   = 2;
+    static const uint8_t DATA_LENGTH_POS      = 4;
+    static const uint8_t FUNCTION_POS         = 7;
+    static const uint8_t DATA_START_POS       = 8;
+    static const uint8_t MIN_MESSAGE_SIZE     = 11;
 
     // CZII Function Codes
-    static const byte RESPONSE_FUNCTION    = 6;
-    static const byte READ_FUNCTION        = 11;
-    static const byte WRITE_FUNCTION       = 12;
+    static const uint8_t RESPONSE_FUNCTION    = 6;
+    static const uint8_t READ_FUNCTION        = 11;
+    static const uint8_t WRITE_FUNCTION       = 12;
 
   private:
 
     Zone* zones[8];
-    byte NUMBER_ZONES;
+    uint8_t NUMBER_ZONES;
     bool statusModified;
 
-    byte controllerState = -1;
-    byte lat_Temp_f = -1;
+    uint8_t controllerState = -1;
+    uint8_t lat_Temp_f = -1;
     float outside_Temp_f = FLOAT_MIN_VALUE;
     float outside_Temp2_f = FLOAT_MIN_VALUE;
-    TimeElements time;
+    //TimeElements time;
 
     bool isValidTemperature(float value);
-    float getTemperatureF(byte highByte, byte lowByte);
+    float getTemperatureF(uint8_t highByte, uint8_t lowByte);
     void updateZoneInfo(RingBuffer& ringBuffer);
     void updateOutsideHumidityTemp(RingBuffer& ringBuffer);
     void updateOutsideTemp(RingBuffer& ringBuffer);
@@ -65,14 +65,14 @@ class ComfortZoneII
     void updateZone1Info(RingBuffer& ringBuffer);
     void updateDamperPositions(RingBuffer& ringBuffer);
 
-    void addJson(JsonObject& jsonObject, String key, byte value);
-    void addJson(JsonObject& jsonObject, String key, float value);
+    //void addJson(JsonObject& jsonObject, String key, uint8_t value);
+    //void addJson(JsonObject& jsonObject, String key, float value);
 
-    void setControllerState(byte value);
-    void setLatTemperature(byte value);
+    void setControllerState(uint8_t value);
+    void setLatTemperature(uint8_t value);
     void setOutsideTemperature(float value);
     void setOutsideTemperature2(float value);
-    void setDayTime(byte day, byte hour, byte minute, byte second);
+    void setDayTime(uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
 
     enum ControllerStateFlags {
       DeHumidify          = 1 << 7,
