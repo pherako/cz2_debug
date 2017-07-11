@@ -8,22 +8,22 @@
 
 //#include <Arduino.h>
 #include "RingBuffer.hpp"
-#include <stdint.h>
+#include <stdio.h>
 
 #define DEBUG_LOG
 #define INFO_LOG
 
 #ifdef DEBUG_LOG
-#define debug_print(x)   Serial.print (x)
-#define debug_println(x)  Serial.println (x)
+#define debug_print(x)   fprintf(stderr, x)
+#define debug_println(x)  fprintf(stderr, x "\n");
 #else
 #define debug_print(x)
 #define debug_println(x)
 #endif
 
 #ifdef INFO_LOG
-#define info_print(x)   Serial.print (x)
-#define info_println(x)  Serial.println (x)
+#define info_print(x)    fprintf(stdout, x)
+#define info_println(x)  fprintf(stdout, x "\n");
 #else
 #define info_print(x)
 #define info_println(x)

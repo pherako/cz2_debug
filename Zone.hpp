@@ -3,7 +3,8 @@
 //
 // Arduino CZII Project
 
-#pragma once
+#ifndef zone_hpp
+#define zone_hpp
 
 #include "Util.h"
 
@@ -85,3 +86,5 @@ class Zone {
     uint8_t humidity       = -1;
     uint8_t damperPosition = -1;
 };
+
+#endif

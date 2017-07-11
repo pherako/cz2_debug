@@ -11,8 +11,7 @@
 RingBuffer rs485InputBuf;
 RingBuffer rs485OutputBuf;
 
-// CZII Configuration
-//ComfortZoneII CzII((uint8_t)4);
+ComfortZoneII CzII((uint8_t)4); //4 zones
 
 //
 //   Debug dump of the current frame including the checksum bytes.  Spaces are inserted for
@@ -70,7 +69,7 @@ void publishCZIIData(RingBuffer ringBuffer) {
   printf("\nRS485: ");
   dumpFrame(ringBuffer);
 
-  //CzII.update(ringBuffer);
+  CzII.update(ringBuffer);
 
 }
 //  This method detects if the current buffer has a valid data frame.  If none is found the buffer is shifted

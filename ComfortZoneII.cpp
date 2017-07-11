@@ -82,16 +82,16 @@ bool ComfortZoneII::isValidTemperature(float value) {
   return value < 200.0 && value > -50.0;
 }
 
-void ComfortZoneII::setDayTime(uint8_t day, uint8_t hour, uint8_t minute, uint8_t second){
-  if( day != time.Wday || hour != time.Hour || minute != time.Minute || second != time.Second){
-    statusModified = true;
-  }
-
-  time.Wday = day;
-  time.Hour = hour;
-  time.Minute = minute;
-  time.Second = second;
-}
+//void ComfortZoneII::setDayTime(uint8_t day, uint8_t hour, uint8_t minute, uint8_t second){
+//  if( day != time.Wday || hour != time.Hour || minute != time.Minute || second != time.Second){
+//    statusModified = true;
+//  }
+//
+//  time.Wday = day;
+//  time.Hour = hour;
+//  time.Minute = minute;
+//  time.Second = second;
+//}
 
 //
 //  Update cached data
@@ -206,7 +206,7 @@ void ComfortZoneII::updateTime(RingBuffer& ringBuffer) {
   uint8_t second = ringBuffer.peek(DATA_START_POS + 6);
 
   day++;
-  setDayTime(day, hour, minute, second);
+  //setDayTime(day, hour, minute, second);
 }
 
 //
@@ -250,80 +250,80 @@ void ComfortZoneII::updateZoneInfo(RingBuffer& ringBuffer) {
 //  Convert the two's compliment temperature into a float (deg F.)
 //
 float ComfortZoneII::getTemperatureF(uint8_t highByte, uint8_t lowByte) {
-  return word(highByte, lowByte) / 16.0;
+  return uint16_t(highByte << 8 + lowByte) / 16.0;
 }
 
 //
-//   To Zone JSON String
+//   To Zone JSON //String
 //
-String ComfortZoneII::toZoneJson() {
-  StaticJsonBuffer <400> jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-
-  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
-    JsonObject& zoneData = root.createNestedObject("z" + String(i + 1));
-    addJson(zoneData, "cool", zones[i]->getCoolSetpoint());
-    addJson(zoneData, "heat", zones[i]->getHeatSetpoint());
-    addJson(zoneData, "temp", zones[i]->getTemperature());
-    addJson(zoneData, "hum", zones[i]->getHumidity());
-    addJson(zoneData, "damp", zones[i]->getDamperPosition());
-  }
-
-  String output;
-  root.printTo(output);
-  return output;
-}
+//String ComfortZoneII::toZoneJson() {
+//  StaticJsonBuffer <400> jsonBuffer;
+//  JsonObject& root = jsonBuffer.createObject();
+//
+//  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
+//    JsonObject& zoneData = root.createNestedObject("z" + //String(i + 1));
+//    addJson(zoneData, "cool", zones[i]->getCoolSetpoint());
+//    addJson(zoneData, "heat", zones[i]->getHeatSetpoint());
+//    addJson(zoneData, "temp", zones[i]->getTemperature());
+//    addJson(zoneData, "hum", zones[i]->getHumidity());
+//    addJson(zoneData, "damp", zones[i]->getDamperPosition());
+//  }
+//
+//  //String output;
+//  root.printTo(output);
+//  return output;
+//}
 
 //
-//   To Status JSON String
+//   To Status JSON //String
 //
-String ComfortZoneII::toStatusJson() {
-  StaticJsonBuffer <300> jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-
-  char timeString[10];
-  sprintf(timeString, "%02d:%02d:%02d", time.Hour, time.Minute, time.Second);
-  root["time"] = timeString;
-  root["day"] = dayStr(time.Wday);
-
-  addJson(root, "lat", lat_Temp_f);
-  addJson(root, "out", outside_Temp_f);
-  addJson(root, "out2", outside_Temp2_f);
-
-  if (controllerState != (uint8_t) - 1) {
-    JsonObject& state = root.createNestedObject("state");
-    state["dehum"] = (int)(bool)(controllerState & DeHumidify);
-    state["hum"] = (int)(bool)(controllerState & Humidify);
-    state["fan"] = (int)(bool)(controllerState & Fan_G);
-    state["rev"] = (int)(bool)(controllerState & ReversingValve);
-    state["aux2"] = (int)(bool)(controllerState & AuxHeat2_W2);
-    state["aux1"] = (int)(bool)(controllerState & AuxHeat1_W1);
-    state["comp2"] = (int)(bool)(controllerState & CompressorStage2_Y2);
-    state["comp1"] = (int)(bool)(controllerState & CompressorStage1_Y1);
-  }
-
-  String output;
-  root.printTo(output);
-  return output;
-}
+//String ComfortZoneII::toStatusJson() {
+//  StaticJsonBuffer <300> jsonBuffer;
+//  JsonObject& root = jsonBuffer.createObject();
+//
+//  char time//String[10];
+//  sprintf(time//String, "%02d:%02d:%02d", time.Hour, time.Minute, time.Second);
+//  root["time"] = time//String;
+//  root["day"] = dayStr(time.Wday);
+//
+//  addJson(root, "lat", lat_Temp_f);
+//  addJson(root, "out", outside_Temp_f);
+//  addJson(root, "out2", outside_Temp2_f);
+//
+//  if (controllerState != (uint8_t) - 1) {
+//    JsonObject& state = root.createNestedObject("state");
+//    state["dehum"] = (int)(bool)(controllerState & DeHumidify);
+//    state["hum"] = (int)(bool)(controllerState & Humidify);
+//    state["fan"] = (int)(bool)(controllerState & Fan_G);
+//    state["rev"] = (int)(bool)(controllerState & ReversingValve);
+//    state["aux2"] = (int)(bool)(controllerState & AuxHeat2_W2);
+//    state["aux1"] = (int)(bool)(controllerState & AuxHeat1_W1);
+//    state["comp2"] = (int)(bool)(controllerState & CompressorStage2_Y2);
+//    state["comp1"] = (int)(bool)(controllerState & CompressorStage1_Y1);
+//  }
+//
+//  //String output;
+//  root.printTo(output);
+//  return output;
+//}
 
 //
 //   Add to json if value is not the default value
 //
-void ComfortZoneII::addJson(JsonObject& jsonObject, String key, uint8_t value) {
-  if ( value == (uint8_t) - 1)
-    return;
-  jsonObject[key] = value;
-}
+//void ComfortZoneII::addJson(JsonObject& jsonObject, //String key, uint8_t value) {
+//  if ( value == (uint8_t) - 1)
+//    return;
+//  jsonObject[key] = value;
+//}
 
 //
 //    Add to json if value is not the default value
 //
-void ComfortZoneII::addJson(JsonObject& jsonObject, String key, float value) {
-  if ( value > FLOAT_MIN_VALUE) {
-    jsonObject[key] = value;
-  }
-}
+//void ComfortZoneII::addJson(JsonObject& jsonObject, //String key, float value) {
+//  if ( value > FLOAT_MIN_VALUE) {
+//    jsonObject[key] = value;
+//  }
+//}
 
 
 
