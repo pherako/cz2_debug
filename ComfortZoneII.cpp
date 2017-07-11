@@ -48,7 +48,7 @@ void ComfortZoneII::setControllerState(uint8_t value) {
   controllerState = value;
 }
 
-void ComfortZoneII::setLatTemperature(uint8_t value)
+void ComfortZoneII::setLatTemperature(uint8_t value) {
   if (!isValidTemperature(value))
       return;
 
