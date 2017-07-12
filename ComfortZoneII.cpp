@@ -96,7 +96,9 @@ bool ComfortZoneII::isValidTemperature(float value) {
 //
 //  Update cached data
 //
+
 bool ComfortZoneII::update(RingBuffer& ringBuffer) {
+  static uint8_t last_function = 0;
 
   uint16_t bufferLength = ringBuffer.length();
 
@@ -106,17 +108,21 @@ bool ComfortZoneII::update(RingBuffer& ringBuffer) {
     return false;
   }
 
-  uint8_t table, row = 0;
+  uint8_t table = 0, row = 0;
   uint8_t dataLength = ringBuffer.peek(DATA_LENGTH_POS);
+  uint8_t function = ringBuffer.peek(FUNCTION_POS);
 
   if (dataLength >= 3) {
     table = ringBuffer.peek(DATA_START_POS + 1);
     row = ringBuffer.peek(DATA_START_POS + 2);
+  } else if (function == RESPONSE_FUNCTION && last_function == WRITE_FUNCTION) {
+    fprintf(stderr, "\n%s: write response len = %d (ack) = %02x\n", __FUNCTION__, dataLength, ringBuffer.peek(DATA_START_POS));
+    return 0;
   }
 
-  uint8_t function = ringBuffer.peek(FUNCTION_POS);
+  fprintf(stderr, "\n%s: table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
 
-  if (function == RESPONSE_FUNCTION) {
+  if (function == RESPONSE_FUNCTION && last_function == READ_FUNCTION) {
     switch (table) {
       case 1:
         if (row == 6 && dataLength == 16) {
@@ -127,32 +133,39 @@ bool ComfortZoneII::update(RingBuffer& ringBuffer) {
         }
         else if (row == 18 && dataLength == 7) {
           updateTime(ringBuffer);
-        }
+        } else
+          goto def_rd;
         break;
       case 2:
         if (row == 3 && dataLength == 13) {
           updateZoneInfo(ringBuffer);
-        }
+        } else
+          goto def_rd;
         break;
       case 9:
-        if (row == 3 && dataLength == 10) {
+        if (row == 1 && dataLength == 10) {
+          updateOutsideTemp(ringBuffer);
+        }
+        else if (row == 3 && dataLength == 10) {
           updateOutsideTemp(ringBuffer);
         }
         else if (row == 5 && dataLength == 4) {
           //updateControllerState(ringBuffer);
-        }
+        } else
+          goto def_rd;
         break;
+def_rd:
       default:
+        fprintf(stderr, "%s: unknown table %d row %d len %d rd rsp\n", __FUNCTION__, table, row, dataLength);
         break;
     }
-    info_println();
-  }
-  else if (function == WRITE_FUNCTION) {
+  } else if (function == WRITE_FUNCTION) {
     switch (table) {
       case 2:
         if (row == 1 && dataLength == 13) {
           updateOutsideHumidityTemp(ringBuffer);
         }
+        else goto def_wr;
         break;
       case 9:
         if (row == 4 && dataLength == 11) {
@@ -161,10 +174,15 @@ bool ComfortZoneII::update(RingBuffer& ringBuffer) {
         else if (row == 5 && dataLength == 4) {
           updateControllerState(ringBuffer);
         }
+        else goto def_wr;
+        break;
+def_wr:
       default:
+        fprintf(stderr, "%s: unknown table %d write\n", __FUNCTION__, table);
         break;
     }
   }
+  last_function = function;
 }
 
 //
@@ -182,6 +200,7 @@ void ComfortZoneII::updateDamperPositions(RingBuffer& ringBuffer) {
 void ComfortZoneII::updateZone1Info(RingBuffer& ringBuffer) {
   zones[0]->setTemperature(getTemperatureF(ringBuffer.peek(DATA_START_POS + 5), ringBuffer.peek(DATA_START_POS + 6)));
   zones[0]->setHumidity(ringBuffer.peek(DATA_START_POS + 7));
+  fprintf(stderr, "\n zone 1 temp = %d hum = %d", __PRETTY_FUNCTION__, zones[0]->getTemperature(), zones[0]->getHumidity());
 }
 
 //
@@ -189,9 +208,10 @@ void ComfortZoneII::updateZone1Info(RingBuffer& ringBuffer) {
 //                                        [     cooling          ] [        heating       ]
 //
 void ComfortZoneII::updateZoneSetpoints(RingBuffer& ringBuffer) {
-  for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
-    zones[i]->setCoolSetpoint(ringBuffer.peek(DATA_START_POS + 3 + i));
-    zones[i]->setHeatSetpoint(ringBuffer.peek(DATA_START_POS + 11 + i));
+  for (uint8_t ii = 0; ii < NUMBER_ZONES; ii++) {
+    zones[ii]->setCoolSetpoint(ringBuffer.peek(DATA_START_POS + 3 + ii));
+    zones[ii]->setHeatSetpoint(ringBuffer.peek(DATA_START_POS + 11 + ii));
+    fprintf(stderr, "\n zone %d cool = %d heat = %d", __PRETTY_FUNCTION__, ii, zones[0]->getCoolSetpoint(), zones[0]->getHeatSetpoint());
   }
 }
 
