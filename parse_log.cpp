@@ -1,12 +1,14 @@
 
 
-#include "ComfortZoneII.hpp"
 
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include "RingBuffer.hpp"
-//#include "ComfortZoneII.hpp"
+#include "ComfortZoneII.hpp"
 
 RingBuffer rs485InputBuf;
 RingBuffer rs485OutputBuf;
@@ -48,11 +50,11 @@ void dumpFrame(RingBuffer ringBuffer) {
   fprintf(stdout, "crc=%04x src=%04x dst=%04x sz=%-3d ", crc, src_addr, dst_addr, dataLength);
   char f_str[4];
   switch(function & 0xff) {
-        case 0x06: strncpy(f_str, "rsp", 3); break;;
-        case 0x0b: strncpy(f_str, "rd ", 3); break;
-        case 0x0c: strncpy(f_str, "wr ", 3); break;
-        case 0x15: strncpy(f_str, "err", 3); break;
-        default  : strncpy(f_str, "ukn", 3); break;
+        case ComfortZoneII::RESPONSE_FUNCTION: strncpy(f_str, "rsp", 3); break;;
+        case ComfortZoneII::READ_FUNCTION    : strncpy(f_str, "rd ", 3); break;
+        case ComfortZoneII::WRITE_FUNCTION   : strncpy(f_str, "wr ", 3); break;
+        case 0x15                            : strncpy(f_str, "err", 3); break;
+        default                              : strncpy(f_str, "ukn", 3); break;
   }
   fprintf(stdout, "fn=%06x (%s)", function, f_str);
 
@@ -145,10 +147,11 @@ bool processInputFrame() {
     return false;
   }
 
-  uint8_t source = rs485InputBuf.peek(ComfortZoneII::SOURCE_ADDRESS_POS);
+  uint8_t source      = rs485InputBuf.peek(ComfortZoneII::SOURCE_ADDRESS_POS);
   uint8_t destination = rs485InputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
-  uint8_t dataLength = rs485InputBuf.peek(ComfortZoneII::DATA_LENGTH_POS);
-  uint8_t function = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
+  uint8_t dataLength  = rs485InputBuf.peek(ComfortZoneII::DATA_LENGTH_POS);
+  uint8_t function    = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
+  static uint8_t last_function = 0;
 
   //debug_println("rs485InputBuf: source=" + String(source) + ", destination=" + String(destination) + ", dataLength=" + String(dataLength) + ", function=" + String(function));
 
@@ -178,32 +181,48 @@ bool processInputFrame() {
     return false;
   }
 
-  publishCZIIData(rs485InputBuf);
+  if(function == ComfortZoneII::RESPONSE_FUNCTION && last_function == ComfortZoneII::WRITE_FUNCTION){
+      //write ack, skip
+      fprintf(stderr, "write ack, skipping\n");
+  } else {
+      publishCZIIData(rs485InputBuf);
+  }
 
   rs485InputBuf.shift(frameLength);
 
-  //digitalWrite(BUILTIN_LED, HIGH);  // Flash LED while processing frames
+  last_function = function;
 
   return true;
 }
 
+static int framecnt = 0;
 void processRs485InputStream(FILE* fd) {
   // Process input data
 
   uint8_t c;
   while (fread(&c, sizeof(c), 1, fd)){
     if (!rs485InputBuf.add(c))
-      fprintf(stderr, "ERROR: INPUT BUFFER OVERRUN!");
+      fprintf(stderr, "<err> input buffer overrun!");
 
     if (processInputFrame())
-      fprintf(stderr, "FOUND GOOD CZII FRAME!");
+      framecnt++;
 
     //lastReceivedMessageTimeMillis = millis();
   }
 }
 
+void sig_handler(int signo)
+{
+  if (signo == SIGINT)
+      printf("processed %d frames. exiting\n", framecnt);
+  exit(0);
+}
 
 int main (int argc, char * argv[]){
+
+    if (signal(SIGINT, sig_handler) == SIG_ERR)
+        printf("\ncan't catch SIGINT\n");
+
     FILE* fd = 0;
     if (argc != 2) {
         fprintf(stderr, "<err> filename required\n");
