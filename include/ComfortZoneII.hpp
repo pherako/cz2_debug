@@ -21,7 +21,7 @@ class ComfortZoneII
   public:
     ComfortZoneII(uint8_t numberZones);
     Zone* getZone(uint8_t zoneIndex);
-    bool update(RingBuffer& ringBuffer);
+    bool update(RingBuffer* ringBuffer);
     bool isZoneModified();
     void clearZoneModified();
     bool isStatusModified();
@@ -35,6 +35,9 @@ class ComfortZoneII
     static const uint8_t DATA_LENGTH_POS      = 4;
     static const uint8_t FUNCTION_POS         = 7;
     static const uint8_t DATA_START_POS       = 8;
+    static const uint8_t TBL_POS              = DATA_START_POS + 1;
+    static const uint8_t ROW_POS              = DATA_START_POS + 2;
+
     static const uint8_t MIN_MESSAGE_SIZE     = 11;
 
     // CZII Function Codes
@@ -56,14 +59,15 @@ class ComfortZoneII
 
     bool isValidTemperature(float value);
     float getTemperatureF(uint8_t highByte, uint8_t lowByte);
-    void updateZoneInfo(RingBuffer& ringBuffer);
-    void updateOutsideHumidityTemp(RingBuffer& ringBuffer);
-    void updateOutsideTemp(RingBuffer& ringBuffer);
-    void updateControllerState(RingBuffer& ringBuffer);
-    void updateZoneSetpoints(RingBuffer& ringBuffer);
-    void updateTime(RingBuffer& ringBuffer);
-    void updateZone1Info(RingBuffer& ringBuffer);
-    void updateDamperPositions(RingBuffer& ringBuffer);
+    void updateZoneInfo            ( RingBuffer* ringBuffer);
+    void updateOutsideHumidityTemp ( RingBuffer* ringBuffer);
+    void updateOutsideTemp         ( RingBuffer* ringBuffer);
+    void updateControllerState     ( RingBuffer* ringBuffer);
+    void updateZoneSetpoints       ( RingBuffer* ringBuffer);
+    void updateTime                ( RingBuffer* ringBuffer);
+    void updateZone1Info           ( RingBuffer* ringBuffer);
+    void updateDamperPositions     ( RingBuffer* ringBuffer);
+    void updateZoneTemp            ( RingBuffer* ringBuffer);
 
     //void addJson(JsonObject& jsonObject, String key, uint8_t value);
     //void addJson(JsonObject& jsonObject, String key, float value);

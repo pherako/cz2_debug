@@ -97,26 +97,26 @@ bool ComfortZoneII::isValidTemperature(float value) {
 //  Update cached data
 //
 
-bool ComfortZoneII::update(RingBuffer& ringBuffer) {
+bool ComfortZoneII::update(RingBuffer* ringBuffer) {
   static uint8_t last_function = 0;
 
-  uint16_t bufferLength = ringBuffer.length();
+  uint16_t bufferLength = ringBuffer->length();
 
   // see if the buffer has at least the minimum size for a frame
   if (bufferLength < MIN_MESSAGE_SIZE ) {
-    //debug_println("ringBuffer: bufferLength < MIN_MESSAGE_SIZE");
+    //debug_println("ringBuffer-> bufferLength < MIN_MESSAGE_SIZE");
     return false;
   }
 
   uint8_t table = 0, row = 0;
-  uint8_t dataLength = ringBuffer.peek(DATA_LENGTH_POS);
-  uint8_t function = ringBuffer.peek(FUNCTION_POS);
+  uint8_t dataLength = ringBuffer->peek(DATA_LENGTH_POS);
+  uint8_t function = ringBuffer->peek(FUNCTION_POS);
 
   if (dataLength >= 3) {
-    table = ringBuffer.peek(DATA_START_POS + 1);
-    row = ringBuffer.peek(DATA_START_POS + 2);
+    table = ringBuffer->peek(TBL_POS);
+    row   = ringBuffer->peek(ROW_POS);
   } else if (function == RESPONSE_FUNCTION && last_function == WRITE_FUNCTION) {
-    fprintf(stderr, "\n%s: write response len = %d (ack) = %02x\n", __FUNCTION__, dataLength, ringBuffer.peek(DATA_START_POS));
+    fprintf(stderr, "\n%s: write response len = %d (ack) = %02x\n", __FUNCTION__, dataLength, ringBuffer->peek(DATA_START_POS));
     return 0;
   }
 
@@ -143,8 +143,11 @@ bool ComfortZoneII::update(RingBuffer& ringBuffer) {
           goto def_rd;
         break;
       case 9:
-        if (row == 1 && dataLength == 10) {
-          updateOutsideTemp(ringBuffer);
+        if (row == 1 && dataLength == 11) {
+          updateZoneTemp(ringBuffer, 1);
+        }
+        else if (row == 2 && dataLength == 11) {
+          updateZoneTemp(ringBuffer, 4);
         }
         else if (row == 3 && dataLength == 10) {
           updateOutsideTemp(ringBuffer);
@@ -188,29 +191,29 @@ def_wr:
 //
 //   FRAME: 9.0  1.0  11  0.0.12  0.9.4.15.15.0.0.0.0.0.0.                 136.181
 //
-void ComfortZoneII::updateDamperPositions(RingBuffer& ringBuffer) {
+void ComfortZoneII::updateDamperPositions(RingBuffer* ringBuffer) {
   for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
-    zones[i]->setDamperPosition(ringBuffer.peek(DATA_START_POS + 3 + i));
+    zones[i]->setDamperPosition(ringBuffer->peek(DATA_START_POS + 3 + i));
   }
 }
 
 //
 //  FRAME: 8.0  1.0  16  0.0.6   0.1.6.0.0.4.64.60.0.0.0.0.0.0.17.50.      74.114
 //
-void ComfortZoneII::updateZone1Info(RingBuffer& ringBuffer) {
-  zones[0]->setTemperature(getTemperatureF(ringBuffer.peek(DATA_START_POS + 5), ringBuffer.peek(DATA_START_POS + 6)));
-  zones[0]->setHumidity(ringBuffer.peek(DATA_START_POS + 7));
+void ComfortZoneII::updateZone1Info(RingBuffer* ringBuffer) {
+  zones[0]->setTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 5), ringBuffer->peek(DATA_START_POS + 6)));
+  zones[0]->setHumidity(ringBuffer->peek(DATA_START_POS + 7));
   fprintf(stderr, "\n zone 1 temp = %d hum = %d", __PRETTY_FUNCTION__, zones[0]->getTemperature(), zones[0]->getHumidity());
 }
 
 //
-//  FRAME: 99.0  1.0  19  0.0.6   0.1.16. 78.77.76.76.76.76.76.76. 68.67.68.68.68.68.68.68.        177.133
-//                                        [     cooling          ] [        heating       ]
+//  FRAME: 9.0  1.0  19  0.0.6   0.1.16. 78.77.76.76.76.76.76.76. 68.67.68.68.68.68.68.68.        177.133
+//                                       [     cooling          ] [        heating       ]
 //
-void ComfortZoneII::updateZoneSetpoints(RingBuffer& ringBuffer) {
+void ComfortZoneII::updateZoneSetpoints(RingBuffer* ringBuffer) {
   for (uint8_t ii = 0; ii < NUMBER_ZONES; ii++) {
-    zones[ii]->setCoolSetpoint(ringBuffer.peek(DATA_START_POS + 3 + ii));
-    zones[ii]->setHeatSetpoint(ringBuffer.peek(DATA_START_POS + 11 + ii));
+    zones[ii]->setCoolSetpoint(ringBuffer->peek(DATA_START_POS + 3 + ii));
+    zones[ii]->setHeatSetpoint(ringBuffer->peek(DATA_START_POS + 11 + ii));
     fprintf(stderr, "\n zone %d cool = %d heat = %d", __PRETTY_FUNCTION__, ii, zones[0]->getCoolSetpoint(), zones[0]->getHeatSetpoint());
   }
 }
@@ -219,11 +222,11 @@ void ComfortZoneII::updateZoneSetpoints(RingBuffer& ringBuffer) {
 //  FRAME: 8.0  1.0  7   0.0.6   0.1.18.3.22.33.47
 //
 //
-void ComfortZoneII::updateTime(RingBuffer& ringBuffer) {
-  uint8_t day = ringBuffer.peek(DATA_START_POS + 3);
-  uint8_t hour = ringBuffer.peek(DATA_START_POS + 4);
-  uint8_t minute = ringBuffer.peek(DATA_START_POS + 5);
-  uint8_t second = ringBuffer.peek(DATA_START_POS + 6);
+void ComfortZoneII::updateTime(RingBuffer* ringBuffer) {
+  uint8_t day    = ringBuffer->peek(DATA_START_POS + 3);
+  uint8_t hour   = ringBuffer->peek(DATA_START_POS + 4);
+  uint8_t minute = ringBuffer->peek(DATA_START_POS + 5);
+  uint8_t second = ringBuffer->peek(DATA_START_POS + 6);
 
   day++;
   //setDayTime(day, hour, minute, second);
@@ -232,42 +235,48 @@ void ComfortZoneII::updateTime(RingBuffer& ringBuffer) {
 //
 //  FRAME: 1.0  9.0  10  0.0.6   0.9.3.195.3.136.72.255.0.0.
 //
-void ComfortZoneII::updateOutsideTemp(RingBuffer& ringBuffer) {
-  setOutsideTemperature(getTemperatureF(ringBuffer.peek(DATA_START_POS + 4), ringBuffer.peek(DATA_START_POS + 5)));
-  setLatTemperature(ringBuffer.peek(DATA_START_POS + 6));
+void ComfortZoneII::updateOutsideTemp(RingBuffer* ringBuffer) {
+  setOutsideTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 4), ringBuffer->peek(DATA_START_POS + 5)));
+  setLatTemperature(ringBuffer->peek(DATA_START_POS + 6));
 }
 
 //
 //  FRAME: 9.0  1.0  4   0.0.12  0.9.5.128.
 //
-void ComfortZoneII::updateControllerState(RingBuffer& ringBuffer) {
-  setControllerState(ringBuffer.peek(DATA_START_POS + 3));
+void ComfortZoneII::updateControllerState(RingBuffer* ringBuffer) {
+  setControllerState(ringBuffer->peek(DATA_START_POS + 3));
 }
 
 //
 //  FRAME: 2.0  1.0  13  0.0.12  0.2.1.0.57.3.145.3.0.0.0.2.0.
 //
-void ComfortZoneII::updateOutsideHumidityTemp(RingBuffer& ringBuffer) {
-  setOutsideTemperature2(getTemperatureF(ringBuffer.peek(DATA_START_POS + 5), ringBuffer.peek(DATA_START_POS + 6)));
-  zones[0]->setHumidity(ringBuffer.peek(DATA_START_POS + 4));
+void ComfortZoneII::updateOutsideHumidityTemp(RingBuffer* ringBuffer) {
+  setOutsideTemperature2(getTemperatureF(ringBuffer->peek(DATA_START_POS + 5), ringBuffer->peek(DATA_START_POS + 6)));
+  zones[0]->setHumidity(ringBuffer->peek(DATA_START_POS + 4));
 }
 
 //
 //  FRAME: 1.0  2.0  13  0.0.6   0.2.3.1.0.0.0.4.160.74.67.77.0.
 //  FRAME: 1.0  2.0  13  0.0.6   0.2.3.0.0.0.0.4.122.71.66.78.0.
 //
-void ComfortZoneII::updateZoneInfo(RingBuffer& ringBuffer) {
-  uint8_t zoneIndex = ringBuffer.peek(2) - 1;
+void ComfortZoneII::updateZoneInfo(RingBuffer* ringBuffer) {
+  uint8_t zoneIndex = ringBuffer->peek(2) - 1;
   if (zoneIndex == 0 || zoneIndex >= NUMBER_ZONES)
     return;
 
-  zones[zoneIndex]->setTemperature(getTemperatureF(ringBuffer.peek(DATA_START_POS + 7), ringBuffer.peek(DATA_START_POS + 8)));
-  zones[zoneIndex]->setHeatSetpoint(ringBuffer.peek(DATA_START_POS + 10));
-  zones[zoneIndex]->setCoolSetpoint(ringBuffer.peek(DATA_START_POS + 11));
+  zones[zoneIndex]->setTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 7), ringBuffer->peek(DATA_START_POS + 8)));
+  zones[zoneIndex]->setHeatSetpoint(ringBuffer->peek(DATA_START_POS + 10));
+  zones[zoneIndex]->setCoolSetpoint(ringBuffer->peek(DATA_START_POS + 11));
+}
+//
+void ComfortZoneII::updateZoneTemp(RingBuffer* ringBuffer, uint8_t zoneStart) {
+  for (uint8_t ii = zoneStart; ii < 4; ii++) {
+      zones[zoneIndex]->setTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 7), ringBuffer->peek(DATA_START_POS + 8)));
+  }
 }
 
 //
-//  Convert the two's compliment temperature into a float (deg F.)
+//  Convert the 16-bit temperature into a float (deg F.)
 //
 float ComfortZoneII::getTemperatureF(uint8_t highByte, uint8_t lowByte) {
   return uint16_t(highByte << 8 + lowByte) / 16.0;
