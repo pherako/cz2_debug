@@ -20,32 +20,32 @@ ComfortZoneII CzII((uint8_t)NUM_ZONES); //4 zones
 //   Debug dump of the current frame including the checksum bytes.  Spaces are inserted for
 //   readability between the major sections of the frame.
 //
-void dumpFrame(RingBuffer ringBuffer) {
+void dumpFrame(RingBuffer* ringBuffer) {
 
-  if (ringBuffer.length() == 0)
+  if (ringBuffer->length() == 0)
     return;
 
   // Data Size
-  uint8_t dataLength = ringBuffer.peek(ComfortZoneII::DATA_LENGTH_POS);
+  uint8_t dataLength = ringBuffer->peek(ComfortZoneII::DATA_LENGTH_POS);
 
   // Checksum
-  uint16_t crc = ringBuffer.peek(ComfortZoneII::DATA_START_POS + dataLength)
-               +(ringBuffer.peek(ComfortZoneII::DATA_START_POS + dataLength + 1) << 8);
+  uint16_t crc = ringBuffer->peek(ComfortZoneII::DATA_START_POS + dataLength)
+               +(ringBuffer->peek(ComfortZoneII::DATA_START_POS + dataLength + 1) << 8);
 
   // Destination
-  uint16_t dst_addr = ringBuffer.peek(ComfortZoneII::DEST_ADDRESS_POS)
-                    +(ringBuffer.peek(ComfortZoneII::DEST_ADDRESS_POS + 1) << 8);
+  uint16_t dst_addr = ringBuffer->peek(ComfortZoneII::DEST_ADDRESS_POS)
+                    +(ringBuffer->peek(ComfortZoneII::DEST_ADDRESS_POS + 1) << 8);
 
   // Source
-  uint16_t src_addr = ringBuffer.peek(ComfortZoneII::SOURCE_ADDRESS_POS)
-                    +(ringBuffer.peek(ComfortZoneII::SOURCE_ADDRESS_POS + 1) << 8);
+  uint16_t src_addr = ringBuffer->peek(ComfortZoneII::SOURCE_ADDRESS_POS)
+                    +(ringBuffer->peek(ComfortZoneII::SOURCE_ADDRESS_POS + 1) << 8);
 
 
 
   // Function
-  uint32_t function = ringBuffer.peek(ComfortZoneII::FUNCTION_POS)
-                    +(ringBuffer.peek(ComfortZoneII::FUNCTION_POS - 1) << 8)
-                    +(ringBuffer.peek(ComfortZoneII::FUNCTION_POS - 2) << 16);
+  uint32_t function = ringBuffer->peek(ComfortZoneII::FUNCTION_POS)
+                    +(ringBuffer->peek(ComfortZoneII::FUNCTION_POS - 1) << 8)
+                    +(ringBuffer->peek(ComfortZoneII::FUNCTION_POS - 2) << 16);
 
   fprintf(stdout, "crc=%04x src=%04x dst=%04x sz=%-3d ", crc, src_addr, dst_addr, dataLength);
   char f_str[4];
@@ -60,21 +60,20 @@ void dumpFrame(RingBuffer ringBuffer) {
 
   // Data
   for (uint8_t pos = ComfortZoneII::DATA_START_POS; pos < (ComfortZoneII::DATA_START_POS + dataLength); pos++) {
-    fprintf(stdout, "%02x ", ringBuffer.peek(pos));
+    fprintf(stdout, "%02x ", ringBuffer->peek(pos));
   }
 
   fflush(stdout);
 }
-//
-//  Publish CZII data to the MQTT feed
-//
-//
-void publishCZIIData(RingBuffer ringBuffer) {
+
+//  Provess CZII data
+void processCZIIData(RingBuffer* ringBuffer) {
   printf("\nRS485: ");
   dumpFrame(ringBuffer);
   CzII.update(ringBuffer);
 
   printf("\n");
+  return;
   Zone* zone;
   for (uint8_t zz = 0; zz < NUM_ZONES; zz++){
       zone = CzII.getZone(zz);
@@ -153,21 +152,16 @@ bool processInputFrame() {
   uint8_t function    = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
   static uint8_t last_function = 0;
 
-  //debug_println("rs485InputBuf: source=" + String(source) + ", destination=" + String(destination) + ", dataLength=" + String(dataLength) + ", function=" + String(function));
-
   uint16_t checksum1Pos = ComfortZoneII::DATA_START_POS + dataLength;
   uint16_t checksum2Pos = checksum1Pos + 1;
   uint16_t frameLength = checksum2Pos + 1;
 
   // Make sure we have enough data for this frame
-  uint16_t frameBufferDiff =  frameLength - bufferLength;
+  uint16_t frameBufferDiff = frameLength - bufferLength;
   if (frameBufferDiff > 0 && frameBufferDiff < 30) {
     // Don't have enough data yet, wait for another uint8_t...
-    //fprintf(stderr, ".");
     return false;
   }
-
-  fflush(stderr);
 
   uint16_t sumData = rs485InputBuf.peek(checksum1Pos) + (rs485InputBuf.peek(checksum2Pos) << 8);
   uint16_t crc = ModRTU_CRC(rs485InputBuf, checksum1Pos);
@@ -185,7 +179,7 @@ bool processInputFrame() {
       //write ack, skip
       fprintf(stderr, "write ack, skipping\n");
   } else {
-      publishCZIIData(rs485InputBuf);
+      processCZIIData(&rs485InputBuf);
   }
 
   rs485InputBuf.shift(frameLength);
@@ -195,12 +189,13 @@ bool processInputFrame() {
   return true;
 }
 
+#define get_char_from_stream(stream, var) fread(&var, sizeof(var), 1, stream)
 static int framecnt = 0;
 void processRs485InputStream(FILE* fd) {
   // Process input data
 
   uint8_t c;
-  while (fread(&c, sizeof(c), 1, fd)){
+  while (get_char_from_stream(fd, c)){
     if (!rs485InputBuf.add(c))
       fprintf(stderr, "<err> input buffer overrun!");
 
