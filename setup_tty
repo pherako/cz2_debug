@@ -1,0 +1,7 @@
+#!/bin/bash
+
+
+stty -F /dev/ttyUSB0 
+stty -F /dev/ttyUSB0 9600 -icrnl -imaxbel -opost -onlcr -isig -icanon -echo
+stty -F /dev/ttyUSB0 
+
