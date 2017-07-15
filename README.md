@@ -20,8 +20,9 @@ Digi-Key: BC2647-ND (NTCLE413E2103F102L) to get starteda
 
 # using the tool
 
-`cat /dev/ttyUSB0 > log.bin` #write a binary file
-./cz2_debug log.bin # parse the file
+`cat /dev/ttyUSB0 > log.bin` write a binary file of transactions
+`./cz2_debug log.bin` to parse the file
+`./cz2_debug /dev/ttyUSB0` to monitor traffic in real-time
 
 I'm using cz2_debug to parse the file and work with completing the API. Every installation is different - see the installer guide. There may be multiple thermostats or just one.
   - the newest children in a strange and uncertain cosmos should listen quietly for a long time, patiently learning about the universe and comparing notes, before shouting into an unknown jungle that we do not understand.
