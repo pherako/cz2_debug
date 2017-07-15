@@ -3,7 +3,7 @@
 //
 // Arduino CZII Project
 
-#include "ComfortZoneII.hpp"
+#include "include/ComfortZoneII.hpp"
 
 ComfortZoneII::ComfortZoneII(uint8_t numberZones)
 {

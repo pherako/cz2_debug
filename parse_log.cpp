@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include "RingBuffer.hpp"
-#include "ComfortZoneII.hpp"
+#include "include/RingBuffer.hpp"
+#include "include/ComfortZoneII.hpp"
 
 RingBuffer rs485InputBuf;
 RingBuffer rs485OutputBuf;
