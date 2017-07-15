@@ -73,7 +73,6 @@ void processCZIIData(RingBuffer* ringBuffer) {
   CzII.update(ringBuffer);
 
   printf("\n");
-  return;
   Zone* zone;
   for (uint8_t zz = 0; zz < NUM_ZONES; zz++){
       zone = CzII.getZone(zz);

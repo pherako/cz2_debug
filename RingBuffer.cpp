@@ -75,10 +75,10 @@ void RingBuffer::reset() {
    debug dump of the entire buffer
 */
 void RingBuffer::dump(uint16_t bufferLength) {
-  fprintf(stderr, "BUFFER: ");
+  fprintf(stderr, "%s: ", __PRETTY_FUNCTION__);
   for (int pos = 0; pos < bufferLength; pos++) {
     uint8_t value = peek(pos);
-    fprintf(stderr, "%02x ");
+    fprintf(stderr, "%02x ", value);
   }
   fflush(stderr);
 }

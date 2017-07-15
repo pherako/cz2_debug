@@ -67,7 +67,7 @@ class ComfortZoneII
     void updateTime                ( RingBuffer* ringBuffer);
     void updateZone1Info           ( RingBuffer* ringBuffer);
     void updateDamperPositions     ( RingBuffer* ringBuffer);
-    void updateZoneTemp            ( RingBuffer* ringBuffer);
+    void updateZoneTemp            ( RingBuffer* ringBuffer, uint8_t zoneStart);
 
     //void addJson(JsonObject& jsonObject, String key, uint8_t value);
     //void addJson(JsonObject& jsonObject, String key, float value);

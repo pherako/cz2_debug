@@ -116,13 +116,19 @@ bool ComfortZoneII::update(RingBuffer* ringBuffer) {
     table = ringBuffer->peek(TBL_POS);
     row   = ringBuffer->peek(ROW_POS);
   } else if (function == RESPONSE_FUNCTION && last_function == WRITE_FUNCTION) {
-    fprintf(stderr, "\n%s: write response len = %d (ack) = %02x\n", __FUNCTION__, dataLength, ringBuffer->peek(DATA_START_POS));
+    fprintf(stderr, "\n%s: wr rsp len = %d (ack) = %02x\n", __PRETTY_FUNCTION__, dataLength, ringBuffer->peek(DATA_START_POS));
+    last_function = function;
     return 0;
   }
 
-  fprintf(stderr, "\n%s: table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
+  if (function == READ_FUNCTION) {
+    fprintf(stderr, "\n%s: rd req table %d row %d\n", __PRETTY_FUNCTION__, table, row);
+    last_function = function;
+    return 0;
+  }
 
   if (function == RESPONSE_FUNCTION && last_function == READ_FUNCTION) {
+    fprintf(stderr, "\n%s: rd rsp table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
     switch (table) {
       case 1:
         if (row == 6 && dataLength == 16) {
@@ -144,7 +150,7 @@ bool ComfortZoneII::update(RingBuffer* ringBuffer) {
         break;
       case 9:
         if (row == 1 && dataLength == 11) {
-          updateZoneTemp(ringBuffer, 1);
+          updateZoneTemp(ringBuffer, 0);
         }
         else if (row == 2 && dataLength == 11) {
           updateZoneTemp(ringBuffer, 4);
@@ -163,6 +169,7 @@ def_rd:
         break;
     }
   } else if (function == WRITE_FUNCTION) {
+    fprintf(stderr, "\n%s: wr table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
     switch (table) {
       case 2:
         if (row == 1 && dataLength == 13) {
@@ -184,6 +191,9 @@ def_wr:
         fprintf(stderr, "%s: unknown table %d write\n", __FUNCTION__, table);
         break;
     }
+  } else {
+      fprintf(stderr, "\n%s: unknown command\n", __PRETTY_FUNCTION__, table, row);
+      ringBuffer->dump(ringBuffer->length());
   }
   last_function = function;
 }
@@ -270,8 +280,20 @@ void ComfortZoneII::updateZoneInfo(RingBuffer* ringBuffer) {
 }
 //
 void ComfortZoneII::updateZoneTemp(RingBuffer* ringBuffer, uint8_t zoneStart) {
-  for (uint8_t ii = zoneStart; ii < 4; ii++) {
-      zones[zoneIndex]->setTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 7), ringBuffer->peek(DATA_START_POS + 8)));
+  //ringBuffer->dump(ringBuffer->length());
+
+  for (uint8_t ii = 0; ii < 4; ii++) {
+      int h_offs = ROW_POS + 1 + ii*2;
+      uint16_t raw = (ringBuffer->peek(h_offs) << 8) + ringBuffer->peek(h_offs+1);
+
+      if(raw == 0xffff){
+      //fprintf(stderr, "skipping invalid val @%d %04x\n", h_offs, raw);
+        continue;
+      }
+
+      //fprintf(stderr, "%s zone %d temp = @%d %04x %2.2f\n", __PRETTY_FUNCTION__, ii + zoneStart, h_offs, raw, (float)raw / 16.0);
+      //fflush(stderr);
+      zones[ii + zoneStart]->setTemperature((float)raw/16.0);
   }
 }
 
