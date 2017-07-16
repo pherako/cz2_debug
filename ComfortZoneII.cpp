@@ -3,7 +3,12 @@
 //
 // Arduino CZII Project
 
+#include <errno.h>
 #include "include/ComfortZoneII.hpp"
+#include "include/debug.h"
+
+#undef DEBUG_SHORT_NAME
+#define DEBUG_SHORT_NAME __FILE__
 
 ComfortZoneII::ComfortZoneII(uint8_t numberZones)
 {
@@ -12,6 +17,7 @@ ComfortZoneII::ComfortZoneII(uint8_t numberZones)
   for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     zones[i] = new Zone(i + 1);
   }
+  P_NFO(dbg_lvl, "%s(%d)\n", __FUNCTION__, numberZones);
 }
 
 bool ComfortZoneII::isStatusModified() {
@@ -96,16 +102,15 @@ bool ComfortZoneII::isValidTemperature(float value) {
 //
 //  Update cached data
 //
-
-bool ComfortZoneII::update(RingBuffer* ringBuffer) {
+int ComfortZoneII::update(RingBuffer* ringBuffer) {
   static uint8_t last_function = 0;
 
   uint16_t bufferLength = ringBuffer->length();
 
   // see if the buffer has at least the minimum size for a frame
   if (bufferLength < MIN_MESSAGE_SIZE ) {
-    //debug_println("ringBuffer-> bufferLength < MIN_MESSAGE_SIZE");
-    return false;
+    P_ERR("ringBuffer-> bufferLength < MIN_MESSAGE_SIZE");
+    return ENODATA;
   }
 
   uint8_t table = 0, row = 0;
@@ -116,19 +121,19 @@ bool ComfortZoneII::update(RingBuffer* ringBuffer) {
     table = ringBuffer->peek(TBL_POS);
     row   = ringBuffer->peek(ROW_POS);
   } else if (function == RESPONSE_FUNCTION && last_function == WRITE_FUNCTION) {
-    fprintf(stderr, "\n%s: wr rsp len = %d (ack) = %02x\n", __PRETTY_FUNCTION__, dataLength, ringBuffer->peek(DATA_START_POS));
+    P_DBG(dbg_lvl, 2, "%s: wr rsp len = %d (ack) = %02x\n", __PRETTY_FUNCTION__, dataLength, ringBuffer->peek(DATA_START_POS));
     last_function = function;
     return 0;
   }
 
   if (function == READ_FUNCTION) {
-    fprintf(stderr, "\n%s: rd req table %d row %d\n", __PRETTY_FUNCTION__, table, row);
+    P_DBG(dbg_lvl, 2, "%s: rd req table %d row %d\n", __PRETTY_FUNCTION__, table, row);
     last_function = function;
     return 0;
   }
 
   if (function == RESPONSE_FUNCTION && last_function == READ_FUNCTION) {
-    fprintf(stderr, "\n%s: rd rsp table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
+    P_DBG(dbg_lvl, 2, "%s: rd rsp table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
     switch (table) {
       case 1:
         if (row == 6 && dataLength == 16) {
@@ -165,11 +170,11 @@ bool ComfortZoneII::update(RingBuffer* ringBuffer) {
         break;
 def_rd:
       default:
-        fprintf(stderr, "%s: unknown table %d row %d len %d rd rsp\n", __FUNCTION__, table, row, dataLength);
+        P_ERR("%s: unknown table %d row %d len %d rd rsp\n", __FUNCTION__, table, row, dataLength);
         break;
     }
   } else if (function == WRITE_FUNCTION) {
-    fprintf(stderr, "\n%s: wr table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
+    P_DBG(dbg_lvl, 2, "%s: wr table=%d, row=%d\n", __PRETTY_FUNCTION__, table, row);
     switch (table) {
       case 2:
         if (row == 1 && dataLength == 13) {
@@ -188,20 +193,22 @@ def_rd:
         break;
 def_wr:
       default:
-        fprintf(stderr, "%s: unknown table %d write\n", __FUNCTION__, table);
+        P_ERR("%s: unknown table %d write\n", __FUNCTION__, table);
         break;
     }
   } else {
-      fprintf(stderr, "\n%s: unknown command\n", __PRETTY_FUNCTION__, table, row);
+      P_ERR("%s: unknown command\n", __PRETTY_FUNCTION__, table, row);
       ringBuffer->dump(ringBuffer->length());
   }
   last_function = function;
+  return 0;
 }
 
 //
 //   FRAME: 9.0  1.0  11  0.0.12  0.9.4.15.15.0.0.0.0.0.0.                 136.181
 //
 void ComfortZoneII::updateDamperPositions(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   for (uint8_t i = 0; i < NUMBER_ZONES; i++) {
     zones[i]->setDamperPosition(ringBuffer->peek(DATA_START_POS + 3 + i));
   }
@@ -211,9 +218,10 @@ void ComfortZoneII::updateDamperPositions(RingBuffer* ringBuffer) {
 //  FRAME: 8.0  1.0  16  0.0.6   0.1.6.0.0.4.64.60.0.0.0.0.0.0.17.50.      74.114
 //
 void ComfortZoneII::updateZone1Info(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   zones[0]->setTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 5), ringBuffer->peek(DATA_START_POS + 6)));
   zones[0]->setHumidity(ringBuffer->peek(DATA_START_POS + 7));
-  fprintf(stderr, "\n zone 1 temp = %d hum = %d", __PRETTY_FUNCTION__, zones[0]->getTemperature(), zones[0]->getHumidity());
+  P_DBG(dbg_lvl, 1, "\n zone 1 temp = %d hum = %d", __PRETTY_FUNCTION__, zones[0]->getTemperature(), zones[0]->getHumidity());
 }
 
 //
@@ -221,10 +229,11 @@ void ComfortZoneII::updateZone1Info(RingBuffer* ringBuffer) {
 //                                       [     cooling          ] [        heating       ]
 //
 void ComfortZoneII::updateZoneSetpoints(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   for (uint8_t ii = 0; ii < NUMBER_ZONES; ii++) {
     zones[ii]->setCoolSetpoint(ringBuffer->peek(DATA_START_POS + 3 + ii));
     zones[ii]->setHeatSetpoint(ringBuffer->peek(DATA_START_POS + 11 + ii));
-    fprintf(stderr, "\n zone %d cool = %d heat = %d", __PRETTY_FUNCTION__, ii, zones[0]->getCoolSetpoint(), zones[0]->getHeatSetpoint());
+    P_DBG(dbg_lvl, 1, "zone %d cool = %d heat = %d", __PRETTY_FUNCTION__, ii, zones[0]->getCoolSetpoint(), zones[0]->getHeatSetpoint());
   }
 }
 
@@ -233,6 +242,7 @@ void ComfortZoneII::updateZoneSetpoints(RingBuffer* ringBuffer) {
 //
 //
 void ComfortZoneII::updateTime(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   uint8_t day    = ringBuffer->peek(DATA_START_POS + 3);
   uint8_t hour   = ringBuffer->peek(DATA_START_POS + 4);
   uint8_t minute = ringBuffer->peek(DATA_START_POS + 5);
@@ -246,6 +256,7 @@ void ComfortZoneII::updateTime(RingBuffer* ringBuffer) {
 //  FRAME: 1.0  9.0  10  0.0.6   0.9.3.195.3.136.72.255.0.0.
 //
 void ComfortZoneII::updateOutsideTemp(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   setOutsideTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 4), ringBuffer->peek(DATA_START_POS + 5)));
   setLatTemperature(ringBuffer->peek(DATA_START_POS + 6));
 }
@@ -254,6 +265,7 @@ void ComfortZoneII::updateOutsideTemp(RingBuffer* ringBuffer) {
 //  FRAME: 9.0  1.0  4   0.0.12  0.9.5.128.
 //
 void ComfortZoneII::updateControllerState(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   setControllerState(ringBuffer->peek(DATA_START_POS + 3));
 }
 
@@ -261,6 +273,7 @@ void ComfortZoneII::updateControllerState(RingBuffer* ringBuffer) {
 //  FRAME: 2.0  1.0  13  0.0.12  0.2.1.0.57.3.145.3.0.0.0.2.0.
 //
 void ComfortZoneII::updateOutsideHumidityTemp(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   setOutsideTemperature2(getTemperatureF(ringBuffer->peek(DATA_START_POS + 5), ringBuffer->peek(DATA_START_POS + 6)));
   zones[0]->setHumidity(ringBuffer->peek(DATA_START_POS + 4));
 }
@@ -270,6 +283,7 @@ void ComfortZoneII::updateOutsideHumidityTemp(RingBuffer* ringBuffer) {
 //  FRAME: 1.0  2.0  13  0.0.6   0.2.3.0.0.0.0.4.122.71.66.78.0.
 //
 void ComfortZoneII::updateZoneInfo(RingBuffer* ringBuffer) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   uint8_t zoneIndex = ringBuffer->peek(2) - 1;
   if (zoneIndex == 0 || zoneIndex >= NUMBER_ZONES)
     return;
@@ -280,6 +294,7 @@ void ComfortZoneII::updateZoneInfo(RingBuffer* ringBuffer) {
 }
 //
 void ComfortZoneII::updateZoneTemp(RingBuffer* ringBuffer, uint8_t zoneStart) {
+  P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
   //ringBuffer->dump(ringBuffer->length());
 
   for (uint8_t ii = 0; ii < 4; ii++) {
@@ -287,12 +302,11 @@ void ComfortZoneII::updateZoneTemp(RingBuffer* ringBuffer, uint8_t zoneStart) {
       uint16_t raw = (ringBuffer->peek(h_offs) << 8) + ringBuffer->peek(h_offs+1);
 
       if(raw == 0xffff){
-      //fprintf(stderr, "skipping invalid val @%d %04x\n", h_offs, raw);
+        P_DBG(dbg_lvl, 4, "skipping invalid val @%d %04x\n", h_offs, raw);
         continue;
       }
 
-      //fprintf(stderr, "%s zone %d temp = @%d %04x %2.2f\n", __PRETTY_FUNCTION__, ii + zoneStart, h_offs, raw, (float)raw / 16.0);
-      //fflush(stderr);
+      P_DBG(dbg_lvl, 4, "%s zone %d temp = @%d %04x %2.2f\n", __PRETTY_FUNCTION__, ii + zoneStart, h_offs, raw, (float)raw / 16.0);
       zones[ii + zoneStart]->setTemperature((float)raw/16.0);
   }
 }

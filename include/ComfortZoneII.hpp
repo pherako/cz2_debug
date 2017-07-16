@@ -21,7 +21,7 @@ class ComfortZoneII
   public:
     ComfortZoneII(uint8_t numberZones);
     Zone* getZone(uint8_t zoneIndex);
-    bool update(RingBuffer* ringBuffer);
+    int update(RingBuffer* ringBuffer);
     bool isZoneModified();
     void clearZoneModified();
     bool isStatusModified();
@@ -47,6 +47,7 @@ class ComfortZoneII
 
   private:
 
+    int dbg_lvl = 3;
     Zone* zones[8];
     uint8_t NUMBER_ZONES;
     bool statusModified;

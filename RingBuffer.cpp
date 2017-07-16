@@ -4,13 +4,13 @@
 // Arduino CZII Project
 
 //#include "Arduino.h"
-#include "include/RingBuffer.hpp"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "include/RingBuffer.hpp"
+#include "include/debug.h"
 
-RingBuffer::RingBuffer()
-{
+RingBuffer::RingBuffer() {
 }
 
 /**
@@ -75,11 +75,13 @@ void RingBuffer::reset() {
    debug dump of the entire buffer
 */
 void RingBuffer::dump(uint16_t bufferLength) {
-  fprintf(stderr, "%s: ", __PRETTY_FUNCTION__);
+  fprintf(stderr, ANSI_COLOR_CYAN "%s: ", __PRETTY_FUNCTION__);
   for (int pos = 0; pos < bufferLength; pos++) {
     uint8_t value = peek(pos);
     fprintf(stderr, "%02x ", value);
   }
+
+  fprintf(stderr, "\n" ANSI_COLOR_RESET);
   fflush(stderr);
 }
 
