@@ -451,12 +451,11 @@ int main (int argc, char * argv[]){
                 int len = rs485OutputBuf.length();
                 rs485OutputBuf.dump(len);
 
-                if(dbg_lvl > 2) processCZIIData(&rs485OutputBuf);
-
                 int tx_cnt = fwrite(rs485OutputBuf.access(), sizeof(uint8_t), len, fd);
 
                 if(tx_cnt == len) {
                     P_NFO(dbg_lvl, "issued read @ %04x\n", addr);
+                    processCZIIData(&rs485OutputBuf);
                     rs485OutputBuf.shift(len);
                 } else {
                     perror(ANSI_COLOR_RED "<err>");

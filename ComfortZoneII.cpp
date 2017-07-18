@@ -219,9 +219,19 @@ void ComfortZoneII::updateDamperPositions(RingBuffer* ringBuffer) {
 //
 void ComfortZoneII::updateZone1Info(RingBuffer* ringBuffer) {
   P_DBG(dbg_lvl, 3, "%s\n", __PRETTY_FUNCTION__);
-  zones[0]->setTemperature(getTemperatureF(ringBuffer->peek(DATA_START_POS + 5), ringBuffer->peek(DATA_START_POS + 6)));
-  zones[0]->setHumidity(ringBuffer->peek(DATA_START_POS + 7));
-  P_DBG(dbg_lvl, 1, "\n zone 1 temp = %d hum = %d", __PRETTY_FUNCTION__, zones[0]->getTemperature(), zones[0]->getHumidity());
+
+  int h_offs = ROW_POS + 3;
+  uint16_t raw = (ringBuffer->peek(h_offs) << 8) + ringBuffer->peek(h_offs+1);
+
+  if(raw != 0xffff){
+    P_DBG(dbg_lvl, 2, "%s zone 1 temp = @%d %04x %2.2f\n", __PRETTY_FUNCTION__, h_offs, raw, (float)raw / 16.0);
+    zones[0]->setTemperature((float)raw/16.0);
+  } else {
+    P_DBG(dbg_lvl, 4, "skipping invalid val @%d %04x\n", h_offs, raw);
+  }
+  zones[0]->setHumidity(ringBuffer->peek(h_offs + 2));
+
+  P_DBG(dbg_lvl, 1, "zone 1 temp = %2.2f hum = %d%%", __PRETTY_FUNCTION__, zones[0]->getTemperature(), zones[0]->getHumidity());
 }
 
 //
