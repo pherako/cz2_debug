@@ -20,6 +20,7 @@ class RingBuffer
     uint16_t length();
     void dump(uint16_t bufferLength);
     void reset();
+    uint8_t* access();
 
     // Fixed size for now
     static const uint16_t MAX_BUFFER_SIZE = 256;

@@ -18,6 +18,8 @@
 #undef DEBUG_SHORT_NAME
 #define DEBUG_SHORT_NAME __FILE__
 
+#define DEVICE_ADDRESS 99
+uint8_t REQUEST_INFO_TEMPLATE[] = {1, 0, DEVICE_ADDRESS, 0, 3, 0, 0, 11, 0, 255, 255, 0, 0};  // Note: Replace the table and row values, and calc checksum before sending out request
 RingBuffer rs485InputBuf;
 RingBuffer rs485OutputBuf;
 
@@ -106,6 +108,7 @@ void dumpFrame(RingBuffer* ringBuffer) {
 void processCZIIData(RingBuffer* ringBuffer) {
   P_NFO(0, "RS485: ");
   dumpFrame(ringBuffer);
+  if(dbg_lvl > 2) ringBuffer->dump(ringBuffer->length());
   CzII.update(ringBuffer);
 
   printf("\n");
@@ -130,6 +133,25 @@ void processCZIIData(RingBuffer* ringBuffer) {
 
 
 }
+
+void rs485_EnqueFrame(uint8_t values[], uint8_t size) {
+  if (rs485OutputBuf.length() + size > RingBuffer::MAX_BUFFER_SIZE) {
+    P_ERR("%s: out of space in buffer, skipping\n", __FUNCTION__);
+    return;
+  }
+
+  // update checksum
+  uint8_t checksum1 =  size - 2;
+  uint16_t crc = ModRTU_CRC(values, checksum1);
+  values[checksum1] = (uint8_t)(crc & 0xff);
+  values[checksum1 + 1] = (uint8_t)(crc >> 8);
+
+  for (uint8_t i = 0; i < size; i++) {
+    uint8_t value = values[i];
+    rs485OutputBuf.add(value);
+  }
+}
+
 //  This method detects if the current buffer has a valid data frame.  If none is found the buffer is shifted
 //  and we return false.
 //
@@ -287,11 +309,11 @@ int main (int argc, char * argv[]){
     while ((c = getopt_long(argc, argv, short_opts, long_opts, &option_index)) != -1) { //consume the arguments
         switch (c) {
             case 's':
-                src_addr = strtoul(optarg, NULL, 10);
+                src_addr = strtoul(optarg, NULL, 16);
                 break;
 
             case 'd':
-                dst_addr = strtoul(optarg, NULL, 10);
+                dst_addr = strtoul(optarg, NULL, 16);
                 break;
 
 //          case 'D':
@@ -393,8 +415,11 @@ int main (int argc, char * argv[]){
         P_ERR("target_file (-f) required\n");
         return EINVAL;
     }
-    fd = fopen(target_file, "r");
+
+    errno = 0;
+    fd = fopen(target_file, "rwb+");
     if(!fd) {
+        perror(ANSI_COLOR_RED "<err>");
         P_ERR("failed to open %s\n", target_file);
         return -1;
     }
@@ -402,13 +427,44 @@ int main (int argc, char * argv[]){
     if (ReadData) {
         P_DBG(dbg_lvl, 1, "waiting our turn to read\n");
         while (get_char_from_stream(fd, d)){
-            if (!rs485InputBuf.add(d))
+            if (!rs485InputBuf.add(d)) {
                 P_ERR("input buffer overrun!");
-
-            if (processInputFrame() == EIDRM) { //inject after write ack
-                P_NFO(dbg_lvl, "rd@ %04x\n", addr);
                 goto cleanup;
             }
+
+            uint8_t destination = rs485InputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
+            uint8_t function    = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
+
+            if (destination == src_addr && function == ComfortZoneII::RESPONSE_FUNCTION){
+                P_DBG(dbg_lvl, 3, "receive buffer match dest=%04x fn=%02x\n", destination, function);
+                if (!processInputFrame()) { //good frame
+                    P_NFO("received response\n");
+                    goto cleanup;
+                }
+            } else if (processInputFrame() == EIDRM) { //inject after write ack
+                P_NFO(dbg_lvl, "rd@ %04x\n", addr);
+                REQUEST_INFO_TEMPLATE[0] = dst_addr;
+                REQUEST_INFO_TEMPLATE[2] = src_addr;
+                REQUEST_INFO_TEMPLATE[9] = (uint8_t)(addr & 0xff);
+                REQUEST_INFO_TEMPLATE[10] = (uint8_t)(addr >> 8);
+                rs485_EnqueFrame(REQUEST_INFO_TEMPLATE, array_len(REQUEST_INFO_TEMPLATE));
+                int len = rs485OutputBuf.length();
+                rs485OutputBuf.dump(len);
+
+                if(dbg_lvl > 2) processCZIIData(&rs485OutputBuf);
+
+                int tx_cnt = fwrite(rs485OutputBuf.access(), sizeof(uint8_t), len, fd);
+
+                if(tx_cnt == len) {
+                    P_NFO(dbg_lvl, "issued read @ %04x\n", addr);
+                    rs485OutputBuf.shift(len);
+                } else {
+                    perror(ANSI_COLOR_RED "<err>");
+                    P_ERR("failed to write to %s, cnt is %d shb %d\n", target_file, tx_cnt, len);
+                    goto cleanup;
+                }
+            }
+
         }
     } else if (WriteData) {
         P_DBG(dbg_lvl, 1, "waiting our turn to write\n");
@@ -421,20 +477,20 @@ int main (int argc, char * argv[]){
                 goto cleanup;
             }
         }
-    } else { //monitor
-        P_DBG(dbg_lvl, 1, "starting monitor loop\n");
-        do{
-            while (get_char_from_stream(fd, d)){
-                if (!rs485InputBuf.add(d)){
-                    P_ERR("input buffer overrun!");
-                    return ENOSR;
-                }
-
-                if (!processInputFrame())
-                    framecnt++;
-            }
-        } while (1);
     }
+
+    P_DBG(dbg_lvl, 1, "starting monitor loop\n");
+    do{
+        while (get_char_from_stream(fd, d)){
+            if (!rs485InputBuf.add(d)){
+                P_ERR("input buffer overrun!");
+                return ENOSR;
+            }
+
+            if (!processInputFrame())
+                framecnt++;
+        }
+    } while (1);
 
     //lastReceivedMessageTimeMillis = millis();
 cleanup:

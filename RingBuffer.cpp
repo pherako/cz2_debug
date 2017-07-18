@@ -85,3 +85,6 @@ void RingBuffer::dump(uint16_t bufferLength) {
   fflush(stderr);
 }
 
+uint8_t* RingBuffer::access(){
+  return &buffer[(bufferTailPos) % MAX_BUFFER_SIZE];
+}
