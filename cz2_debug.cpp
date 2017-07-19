@@ -30,6 +30,21 @@ static uint16_t src_addr = 8;
 static uint16_t dst_addr = 9;
 static int dbg_lvl = 1;
 
+typedef struct {
+    uint8_t dst_addr;
+    uint16_t addr;
+    const char* name;
+} t_read_seq;
+
+t_read_seq update_array[] = {
+    {0x01, 0x0601, "Zone 1"   } ,
+    {0x09, 0x0901, "Zone 2-4" } ,
+    {0x09, 0x0902, "Zone 5-8" } ,
+    {0x09, 0x0903, "OAT"      } ,
+    {0x09, 0x0904, "LAT"      } ,
+    {0x09, 0x0905, NULL       } 
+};
+
 static void printhelp(char * name){
     // see long_opts in main
     printf("================================================================================\n");
@@ -47,6 +62,7 @@ static void printhelp(char * name){
 //  printf("    -D, --regdump FILE    : dump all rows of every table\n"                        );
 //  printf("    -w, --write ADDR DATA : write hex data to clk config register\n"               );
     printf("    -r, --read TBL_ROW    : issue a read request\n"                                );
+    printf("    -u, --update          : read sequence to update state \n"                      );
     printf("================================================================================\n");
     printf("    -i, --info            : print information about settings and quit\n"           );
     printf("================================================================================\n");
@@ -249,7 +265,7 @@ int processInputFrame() {
 }
 
 #define get_char_from_stream(stream, var) fread(&var, sizeof(var), 1, stream)
-static int cz2_read(FILE* fd, uint16_t rd_addr){
+static int cz2_read(FILE* fd, uint8_t dst, uint16_t rd_addr){
     char d;
     P_DBG(dbg_lvl, 1, "waiting our turn to read\n");
     while (get_char_from_stream(fd, d)){
@@ -269,7 +285,7 @@ static int cz2_read(FILE* fd, uint16_t rd_addr){
             }
         } else if (processInputFrame() == EIDRM) { //inject after write ack
             P_NFO(dbg_lvl, "rd@ %04x\n", rd_addr);
-            REQUEST_INFO_TEMPLATE[0] = dst_addr;
+            REQUEST_INFO_TEMPLATE[0] = dst;
             REQUEST_INFO_TEMPLATE[2] = src_addr;
             REQUEST_INFO_TEMPLATE[9] = (uint8_t)(rd_addr & 0xff);
             REQUEST_INFO_TEMPLATE[10] = (uint8_t)(rd_addr >> 8);
@@ -324,6 +340,7 @@ int main (int argc, char * argv[]){
     // options flags
     int WriteData       = 0; // Write register
     int ReadData        = 0; // Read register
+    int Update          = 0; // Read register
     int WriteHelpText   = 0; // Display help dialog
     int PrintRegDump    = 0; // Dump all regs in binary form
     int PrintInfo       = 0; // Print misc info
@@ -340,6 +357,7 @@ int main (int argc, char * argv[]){
         {"help"   , no_argument       , NULL , 'h'},
         {"info"   , no_argument       , NULL , 'i'},
         {"read"   , required_argument , NULL , 'r'},
+        {"update" , no_argument       , NULL , 'u'},
         {"write"  , required_argument , NULL , 'w'},
         {"verbose", optional_argument , NULL , 'v'},
         {"quiet"  , optional_argument , NULL , 'q'},
@@ -348,7 +366,7 @@ int main (int argc, char * argv[]){
         {0        , 0                 , NULL , 0  }
     };
 
-    const char short_opts[] = ":s:d:D:f:hir:w:v:qVm";
+    const char short_opts[] = ":s:d:D:f:hir:w:v:qVmu";
     while ((c = getopt_long(argc, argv, short_opts, long_opts, &option_index)) != -1) { //consume the arguments
         switch (c) {
             case 's':
@@ -399,6 +417,10 @@ int main (int argc, char * argv[]){
                 target_file = optarg;
                 break;
 
+            case 'u':
+                Update = 1;
+                break;
+
             case 'r':
                 addr = (uint16_t)strtoul(optarg, NULL, 16);
                 ReadData = 1;
@@ -443,6 +465,7 @@ int main (int argc, char * argv[]){
 
     P_DBG(dbg_lvl, 0, "WriteData       = 0x%08x\n", WriteData      );
     P_DBG(dbg_lvl, 0, "ReadData        = 0x%08x\n", ReadData       );
+    P_DBG(dbg_lvl, 0, "Update          = 0x%08x\n", Update         );
     P_DBG(dbg_lvl, 0, "WriteHelpText   = 0x%08x\n", WriteHelpText  );
     P_DBG(dbg_lvl, 0, "PrintRegDump    = 0x%08x\n", PrintRegDump   );
     P_DBG(dbg_lvl, 0, "PrintInfo       = 0x%08x\n", PrintInfo      );
@@ -468,7 +491,7 @@ int main (int argc, char * argv[]){
     }
 
     if (ReadData) {
-       if(cz2_read(fd, addr)){
+       if(cz2_read(fd, dst_addr, addr)){
           P_ERR("failed to write to %s\n", target_file);
        }
     } else if (WriteData) {
@@ -482,15 +505,19 @@ int main (int argc, char * argv[]){
                 goto cleanup;
             }
         }
-    } 
- // else if (Update) {
- //    for (ii
- //    if(cz2_read(fd, 0x0601)){
- //       P_ERR("failed to read @ from %s\n", target_file);
- //    }
- // }
+    } else if (Update) {
+        for (t_read_seq* arr = update_array; arr->name != NULL; arr++){
+            printf("%s from %02x @ %04x \n", arr->name, arr->dst_addr, arr->addr);
+            if(cz2_read(fd, arr->dst_addr, arr->addr)){
+               P_ERR("failed to read @ from %s\n", target_file);
+            }
+        }
+            goto cleanup;
+        }
+
 
     P_DBG(dbg_lvl, 1, "starting monitor loop\n");
+
     do{
         while (get_char_from_stream(fd, d)){
             if (!rs485InputBuf.add(d)){
