@@ -249,6 +249,49 @@ int processInputFrame() {
 }
 
 #define get_char_from_stream(stream, var) fread(&var, sizeof(var), 1, stream)
+static int cz2_read(FILE* fd, uint16_t rd_addr){
+    char d;
+    P_DBG(dbg_lvl, 1, "waiting our turn to read\n");
+    while (get_char_from_stream(fd, d)){
+        if (!rs485InputBuf.add(d)) {
+            P_ERR("input buffer overrun!");
+            return ENOSR;
+        }
+
+        uint8_t destination = rs485InputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
+        uint8_t function    = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
+
+        if (destination == src_addr && function == ComfortZoneII::RESPONSE_FUNCTION){
+            P_DBG(dbg_lvl, 3, "receive buffer match dest=%04x fn=%02x\n", destination, function);
+            if (!processInputFrame()) { //good frame
+                P_NFO("received response\n");
+                return 0;
+            }
+        } else if (processInputFrame() == EIDRM) { //inject after write ack
+            P_NFO(dbg_lvl, "rd@ %04x\n", rd_addr);
+            REQUEST_INFO_TEMPLATE[0] = dst_addr;
+            REQUEST_INFO_TEMPLATE[2] = src_addr;
+            REQUEST_INFO_TEMPLATE[9] = (uint8_t)(rd_addr & 0xff);
+            REQUEST_INFO_TEMPLATE[10] = (uint8_t)(rd_addr >> 8);
+            rs485_EnqueFrame(REQUEST_INFO_TEMPLATE, array_len(REQUEST_INFO_TEMPLATE));
+            int len = rs485OutputBuf.length();
+            rs485OutputBuf.dump(len);
+
+            int tx_cnt = fwrite(rs485OutputBuf.access(), sizeof(uint8_t), len, fd);
+
+            if(tx_cnt == len) {
+                P_NFO(dbg_lvl, "issued read @ %04x\n", rd_addr);
+                processCZIIData(&rs485OutputBuf);
+                rs485OutputBuf.shift(len);
+            } else {
+                perror(ANSI_COLOR_RED "<err>");
+                P_ERR("%s fwrite cnt is %d shb %d\n", __FUNCTION__, tx_cnt, len);
+                return EINVAL;
+            }
+        }
+
+    }
+}
 static int framecnt = 0;
 
 void sig_handler(int signo)
@@ -425,46 +468,9 @@ int main (int argc, char * argv[]){
     }
 
     if (ReadData) {
-        P_DBG(dbg_lvl, 1, "waiting our turn to read\n");
-        while (get_char_from_stream(fd, d)){
-            if (!rs485InputBuf.add(d)) {
-                P_ERR("input buffer overrun!");
-                goto cleanup;
-            }
-
-            uint8_t destination = rs485InputBuf.peek(ComfortZoneII::DEST_ADDRESS_POS);
-            uint8_t function    = rs485InputBuf.peek(ComfortZoneII::FUNCTION_POS);
-
-            if (destination == src_addr && function == ComfortZoneII::RESPONSE_FUNCTION){
-                P_DBG(dbg_lvl, 3, "receive buffer match dest=%04x fn=%02x\n", destination, function);
-                if (!processInputFrame()) { //good frame
-                    P_NFO("received response\n");
-                    goto cleanup;
-                }
-            } else if (processInputFrame() == EIDRM) { //inject after write ack
-                P_NFO(dbg_lvl, "rd@ %04x\n", addr);
-                REQUEST_INFO_TEMPLATE[0] = dst_addr;
-                REQUEST_INFO_TEMPLATE[2] = src_addr;
-                REQUEST_INFO_TEMPLATE[9] = (uint8_t)(addr & 0xff);
-                REQUEST_INFO_TEMPLATE[10] = (uint8_t)(addr >> 8);
-                rs485_EnqueFrame(REQUEST_INFO_TEMPLATE, array_len(REQUEST_INFO_TEMPLATE));
-                int len = rs485OutputBuf.length();
-                rs485OutputBuf.dump(len);
-
-                int tx_cnt = fwrite(rs485OutputBuf.access(), sizeof(uint8_t), len, fd);
-
-                if(tx_cnt == len) {
-                    P_NFO(dbg_lvl, "issued read @ %04x\n", addr);
-                    processCZIIData(&rs485OutputBuf);
-                    rs485OutputBuf.shift(len);
-                } else {
-                    perror(ANSI_COLOR_RED "<err>");
-                    P_ERR("failed to write to %s, cnt is %d shb %d\n", target_file, tx_cnt, len);
-                    goto cleanup;
-                }
-            }
-
-        }
+       if(cz2_read(fd, addr)){
+          P_ERR("failed to write to %s\n", target_file);
+       }
     } else if (WriteData) {
         P_DBG(dbg_lvl, 1, "waiting our turn to write\n");
         while (get_char_from_stream(fd, d)){
@@ -476,7 +482,13 @@ int main (int argc, char * argv[]){
                 goto cleanup;
             }
         }
-    }
+    } 
+ // else if (Update) {
+ //    for (ii
+ //    if(cz2_read(fd, 0x0601)){
+ //       P_ERR("failed to read @ from %s\n", target_file);
+ //    }
+ // }
 
     P_DBG(dbg_lvl, 1, "starting monitor loop\n");
     do{
